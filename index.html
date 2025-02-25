@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tire Shop Plus Admin</title>
+    <meta name="robots" content="noindex, nofollow">
+    <style>
+        .table-container { width: 100%; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 8px; border: 1px solid #ddd; text-align: center; font-size: 14px; white-space: nowrap; }
+        body { font-family: Arial, sans-serif; text-align: center; }
+        header { background-color: #202123; color: #FF0000; padding: 20px; font-size: 24px; font-weight: bold; }
+        .container { max-width: 1000px; margin: 20px auto; padding: 20px; background-color: #f4f4f4; border-radius: 5px; }
+        th { background-color: #FF0000; color: white; }
+        .add-btn { width: 150px; padding: 8px; font-size: 16px; background-color: #FF0000; color: white; cursor: pointer; border: none; border-radius: 5px; }
+        .form-container { display: none; margin-top: 20px; padding: 10px; background-color: #ddd; border-radius: 5px; }
+        .form-container input, .form-container select { margin: 5px; padding: 8px; width: calc(100% - 20px); }
+        .save-btn { background-color: green; color: white; padding: 10px; cursor: pointer; border: none; border-radius: 5px; font-size: 16px; }
+        .logo { display: block; margin: 0 auto; width: 150px; height: auto; }
+    </style>
+</head>
+<body>
+    <header>
+        <img src="logo.png" alt="Tire Shop Plus Logo" class="logo">
+        <h2 style="color: #FFAA00;">Tire Shop Plus</h2>
+        <h2 style="color: #FF0000;">Admin</h2>
+    </header>
+    <div class="container">
+        <h2>Search for Tires</h2>
+        <input type="text" id="searchSize" placeholder="Enter size" oninput="filterTable()">
+        <input type="text" id="searchBrand" placeholder="Enter brand" oninput="filterTable()">
+        <input type="text" id="searchNumber" placeholder="Search by # (number)" oninput="filterTable()">
+        <select id="searchPieces" onchange="filterTable()">
+            <option value="">Select Pieces</option>
+            ${Array.from({ length: 21 }, (_, i) => `<option value="${i}">${i}</option>`).join('')}
+        </select>
+        <select id="searchSeason" onchange="filterTable()">
+            <option value="">Select Season</option>
+            <option value="A/T">A/T</option>
+            <option value="A/S">A/S</option>
+            <option value="Wint">Wint</option>
+            <option value="M/T">M/T</option>
+        </select>
+        <select id="searchCondition" onchange="filterTable()">
+            <option value="">Select Condition</option>
+            <option value="New">New</option>
+            <option value="Used">Used</option>
+        </select>
+
+        <button class="add-btn" onclick="toggleForm()">+ Add</button>
+        
+        <div id="addForm" class="form-container">
+            <input type="text" id="size" placeholder="Size">
+            <input type="text" id="price" placeholder="Price">
+            <select id="season">
+                <option value="">Season</option>
+                <option value="A/T">A/T</option>
+                <option value="A/S">A/S</option>
+                <option value="Wint">Wint</option>
+                <option value="M/T">M/T</option>
+            </select>
+            <input type="text" id="brand" placeholder="Brand/Model">
+            <input type="text" id="pieces" placeholder="Pieces">
+            <select id="condition">
+                <option value="">Select Condition</option>
+                <option value="New">New</option>
+                <option value="Used">Used</option>
+            </select>
+            <input type="text" id="location" placeholder="Location">
+            <input type="text" id="number" placeholder="#">
+            <button class="save-btn" onclick="addTire()">Done</button>
+        </div>
+
+        <div class="table-container">
+            <table id="tireTable">
+                <thead>
+                    <tr>
+                        <th>Size</th>
+                        <th>Price</th>
+                        <th>Season</th>
+                        <th>Brand/Model</th>
+                        <th>Pieces</th>
+                        <th>New/Used</th>
+                        <th>Location</th>
+                        <th>#</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbx6nJMVxcGEiTq_mRVyycp2T-qnWPZEM8QKm-Ye8x45RjKJ-WCF2KvhLqirSsI5aNr6jw/exec";
+
+        function toggleForm() {
+            const form = document.getElementById("addForm");
+            form.style.display = (form.style.display === "none" || form.style.display === "") ? "block" : "none";
+
+            if (form.style.display === "block") {
+                document.querySelectorAll("#addForm input, #addForm select").forEach(el => el.value = "");
+            }
+        }
+
+        async function addTire() {
+            const fields = ["size", "price", "season", "brand", "pieces", "condition", "location", "number"];
+            let hasData = false;
+            let formData = { action: "add" };
+
+            fields.forEach(id => {
+                const value = document.getElementById(id).value.trim();
+                formData[id] = value;
+                if (value) hasData = true;
+            });
+
+            if (!hasData) {
+                toggleForm();
+                return;
+            }
+
+            await fetch(WEB_APP_URL, {
+                method: "POST",
+                body: new URLSearchParams(formData)
+            });
+
+            alert("Added successfully!");
+            loadData();
+            toggleForm();
+        }
+
+        async function deleteRow(number) {
+            await fetch(WEB_APP_URL, {
+                method: "POST",
+                body: new URLSearchParams({ action: "delete", number: number })
+            });
+            alert("Deleted successfully!");
+            loadData();
+        }
+
+        async function loadData() {
+            const response = await fetch(WEB_APP_URL);
+            const data = await response.json();
+            // **Сортуємо масив шин за спаданням номера**
+data.sort((a, b) => Number(b["#"]) - Number(a["#"]));
+            let table = document.getElementById("tireTable").getElementsByTagName("tbody")[0];
+            table.innerHTML = "";
+            data.forEach(row => {
+                let tr = document.createElement("tr");
+                ["SIZE", "Price", "Season", "Brand", "Pieces", "New/Used", "location", "#"].forEach(col => {
+                    let td = document.createElement("td");
+                    td.textContent = row[col] || "-";
+                    tr.appendChild(td);
+                });
+                let actionTd = document.createElement("td");
+                let deleteBtn = document.createElement("button");
+                deleteBtn.textContent = "🗑";
+                deleteBtn.onclick = () => deleteRow(row["#"]);
+                actionTd.appendChild(deleteBtn);
+                tr.appendChild(actionTd);
+              table.appendChild(tr); // Додаємо новий рядок у таблицю
+            });
+        }
+function filterTable() {
+    let size = document.getElementById("searchSize").value.toLowerCase();
+    let brand = document.getElementById("searchBrand").value.toLowerCase();
+    let number = document.getElementById("searchNumber").value.toLowerCase();
+    let pieces = document.getElementById("searchPieces").value.toLowerCase();
+    let season = document.getElementById("searchSeason").value.toLowerCase();
+    let condition = document.getElementById("searchCondition").value.toLowerCase();
+
+    let table = document.getElementById("tireTable").getElementsByTagName("tbody")[0];
+    let rows = table.getElementsByTagName("tr");
+
+    for (let i = 0; i < rows.length; i++) {
+        let cols = rows[i].getElementsByTagName("td");
+        if (cols.length > 0) {
+            let sizeText = cols[0].textContent.toLowerCase();
+            let priceText = cols[1].textContent.toLowerCase();
+            let seasonText = cols[2].textContent.toLowerCase();
+            let brandText = cols[3].textContent.toLowerCase();
+            let piecesText = cols[4].textContent.toLowerCase();
+            let conditionText = cols[5].textContent.toLowerCase();
+            let locationText = cols[6].textContent.toLowerCase();
+            let numberText = cols[7].textContent.toLowerCase();
+
+            if (
+                (size === "" || sizeText.includes(size)) &&
+                (brand === "" || brandText.includes(brand)) &&
+                (number === "" || numberText.includes(number)) &&
+                (pieces === "" || piecesText.includes(pieces)) &&
+                (season === "" || seasonText.includes(season)) &&
+                (condition === "" || conditionText.includes(condition))
+            ) {
+                rows[i].style.display = "";
+            } else {
+                rows[i].style.display = "none";
+            }
+        }
+    }
+}
+        window.onload = () => {
+            loadData();
+            document.getElementById("searchPieces").innerHTML += Array.from({ length: 21 }, (_, i) => `<option value="${i}">${i}</option>`).join('');
+        };
+    </script>
+</body>
+</html>
