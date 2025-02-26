@@ -31,17 +31,15 @@
         <input type="text" id="searchSize" placeholder="Enter size" oninput="filterTable()">
         <input type="text" id="searchBrand" placeholder="Enter brand" oninput="filterTable()">
         <input type="text" id="searchNumber" placeholder="Search by # (number)" oninput="filterTable()">
-        <select id="searchPieces" onchange="filterTable()">
-            <option value="">Select Pieces</option>
-            ${Array.from({ length: 21 }, (_, i) => `<option value="${i}">${i}</option>`).join('')}
-        </select>
+      <select id="searchPieces" onchange="filterTable()"></select>
         <select id="searchSeason" onchange="filterTable()">
-            <option value="">Select Season</option>
-            <option value="A/T">A/T</option>
-            <option value="A/S">A/S</option>
-            <option value="Wint">Wint</option>
-            <option value="M/T">M/T</option>
-        </select>
+    <option value="">Select Season</option>
+    <option value="A/T">A/T</option>
+    <option value="A/S">A/S</option>
+    <option value="A/W">A/W</option> <!-- Додано -->
+    <option value="Wint">Wint</option>
+    <option value="M/T">M/T</option>
+</select>
         <select id="searchCondition" onchange="filterTable()">
             <option value="">Select Condition</option>
             <option value="New">New</option>
@@ -53,13 +51,14 @@
         <div id="addForm" class="form-container">
             <input type="text" id="size" placeholder="Size">
             <input type="text" id="price" placeholder="Price">
-            <select id="season">
-                <option value="">Season</option>
-                <option value="A/T">A/T</option>
-                <option value="A/S">A/S</option>
-                <option value="Wint">Wint</option>
-                <option value="M/T">M/T</option>
-            </select>
+           <select id="season">
+    <option value="">Season</option>
+    <option value="A/T">A/T</option>
+    <option value="A/S">A/S</option>
+    <option value="A/W">A/W</option> <!-- Додано -->
+    <option value="Wint">Wint</option>
+    <option value="M/T">M/T</option>
+</select>
             <input type="text" id="brand" placeholder="Brand/Model">
             <input type="text" id="pieces" placeholder="Pieces">
             <select id="condition">
@@ -200,10 +199,19 @@ function filterTable() {
         }
     }
 }
-        window.onload = () => {
-            loadData();
-            document.getElementById("searchPieces").innerHTML += Array.from({ length: 21 }, (_, i) => `<option value="${i}">${i}</option>`).join('');
-        };
+     window.onload = () => {
+    loadData();
+
+    let searchPieces = document.getElementById("searchPieces");
+    searchPieces.innerHTML = '<option value="">Select Pieces</option>'; // Додаємо перший варіант
+
+    for (let i = 0; i <= 20; i++) {  // Додаємо числа від 0 до 20
+        let option = document.createElement("option");
+        option.value = i;
+        option.textContent = i;
+        searchPieces.appendChild(option);
+    }
+};
     </script>
 </body>
 </html>
