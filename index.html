@@ -7,7 +7,7 @@
     <meta name="robots" content="noindex, nofollow">
     <style>
         .table-container { width: 100%; overflow-x: hidden; }
-        table { width: 100%; border-collapse: collapse; table-layout: auto; }
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 20px;}
         th, td { padding: 4px; border: 1px solid #ddd; text-align: center; font-size: 12px; white-space: normal; word-wrap: break-word;min-width: 70px;max-width: 120px;}
         body { font-family: Arial, sans-serif; text-align: center; }
         header { background-color: #202123; color: #FF0000; padding: 20px; font-size: 24px; font-weight: bold; }
@@ -201,6 +201,15 @@ async function loadData() {
     });
 }
 function editRow(rowElement, oldRowData) {
+    let table = document.getElementById("tireTable");
+    let tableWidth = table.offsetWidth; // Запам’ятовуємо ширину таблиці
+    let tableHeight = table.offsetHeight; // Запам’ятовуємо висоту таблиці
+
+    // Фіксуємо розмір таблиці перед редагуванням
+    table.style.width = tableWidth + "px";
+    table.style.height = tableHeight + "px";
+    table.style.tableLayout = "fixed"; 
+
     let cells = rowElement.getElementsByTagName("td");
     let actionTd = rowElement.lastChild;
 
@@ -213,6 +222,8 @@ function editRow(rowElement, oldRowData) {
         let colName = cells[i].getAttribute("data-col");
         let input = document.createElement("input");
         input.value = cells[i].textContent.trim();
+        input.style.width = "100%"; // Щоб поле не виходило за розміри комірки
+
         cells[i].textContent = "";
         cells[i].appendChild(input);
 
@@ -222,7 +233,11 @@ function editRow(rowElement, oldRowData) {
     // Кнопка "Зберегти" (✅)
     let saveBtn = document.createElement("button");
     saveBtn.textContent = "✅";
-    saveBtn.onclick = () => saveEditedRow(rowElement, oldRowData, updatedData);
+    saveBtn.onclick = async () => {
+        await saveEditedRow(rowElement, oldRowData, updatedData);
+        table.style.width = ""; // Скидаємо фіксацію ширини
+        table.style.height = ""; // Скидаємо фіксацію висоти
+    };
 
     actionTd.appendChild(saveBtn);
 }
@@ -231,7 +246,6 @@ async function saveEditedRow(rowElement, oldRowData, updatedData) {
     console.log("Updated Data:", updatedData);
 
     let table = document.getElementById("tireTable");
-    let tableWidth = table.offsetWidth; // Запам'ятовуємо ширину таблиці
 
     // Видаляємо старий запис
     let deleteResponse = await fetch(WEB_APP_URL, {
@@ -276,8 +290,9 @@ async function saveEditedRow(rowElement, oldRowData, updatedData) {
             // Оновлюємо тільки таблицю, без зміщення
             await loadData();
 
-            // Відновлюємо ширину таблиці після оновлення
-            table.style.width = tableWidth + "px";
+            // Скидаємо розмір таблиці
+            table.style.width = "";
+            table.style.height = "";
         } else {
             alert("Error adding updated data: " + addResult);
         }
