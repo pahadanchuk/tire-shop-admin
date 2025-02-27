@@ -95,7 +95,7 @@
     </div>
 
     <script>
-        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyVpMtMZGcO6nAbFEKzW8G0h2xZtbvBH0Mv9LXaZiDIEZTvQCnhe_wOeHPtRIdHWx6EFQ/exec";
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbx12uIOXUF5zGP-3ZHQ2WY1l4PR3gpUK6aZlzqawAd6nclWAZStjlCucTCVZM-GAAIrfQ/exec";
 
         function toggleForm() {
             const form = document.getElementById("addForm");
@@ -161,32 +161,131 @@ async function loadData() {
     let response = await fetch(WEB_APP_URL);
     let data = await response.json();
 
+    // Сортуємо так, щоб записи з номером були зверху, а без номера залишалися внизу
+    data.sort((a, b) => {
+        let numA = a["#"] ? Number(a["#"]) : -Infinity;
+        let numB = b["#"] ? Number(b["#"]) : -Infinity;
+        return numB - numA;
+    });
+
     let table = document.getElementById("tireTable").getElementsByTagName("tbody")[0];
     table.innerHTML = "";
 
     data.forEach(row => {
         let tr = document.createElement("tr");
+
         ["SIZE", "Price", "Season", "Brand", "Pieces", "New/Used", "location", "#"].forEach(col => {
             let td = document.createElement("td");
             td.textContent = row[col] || "-";
+            td.setAttribute("data-col", col);
             tr.appendChild(td);
         });
 
         let actionTd = document.createElement("td");
+
+        // Кнопка редагування (✏️)
+        let editBtn = document.createElement("button");
+        editBtn.textContent = "✏️";
+        editBtn.onclick = () => editRow(tr, row);
+        
+        // Кнопка видалення (🗑)
         let deleteBtn = document.createElement("button");
         deleteBtn.textContent = "🗑";
+        deleteBtn.onclick = () => deleteRow(row["SIZE"], row["Brand"], row["location"], row["Pieces"]);
 
-        console.log("Passing to deleteRow:", row["SIZE"], row["Brand"], row["location"], row["Pieces"]); // Додаємо лог
-
-        deleteBtn.onclick = () => {
-            deleteRow(row["SIZE"], row["Brand"], row["location"], row["Pieces"]);
-        };
-
+        actionTd.appendChild(editBtn);
         actionTd.appendChild(deleteBtn);
         tr.appendChild(actionTd);
+
         table.appendChild(tr);
     });
 }
+function editRow(rowElement, oldRowData) {
+    let cells = rowElement.getElementsByTagName("td");
+    let actionTd = rowElement.lastChild;
+
+    // Прибираємо старі кнопки
+    actionTd.innerHTML = "";
+
+    // Перетворюємо комірки в поля введення
+    let updatedData = {};
+    for (let i = 0; i < cells.length - 1; i++) {
+        let colName = cells[i].getAttribute("data-col");
+        let input = document.createElement("input");
+        input.value = cells[i].textContent.trim();
+        cells[i].textContent = "";
+        cells[i].appendChild(input);
+
+        input.oninput = () => updatedData[colName] = input.value.trim();
+    }
+
+    // Кнопка "Зберегти" (✅)
+    let saveBtn = document.createElement("button");
+    saveBtn.textContent = "✅";
+    saveBtn.onclick = () => saveEditedRow(rowElement, oldRowData, updatedData);
+
+    actionTd.appendChild(saveBtn);
+}
+async function saveEditedRow(rowElement, oldRowData, updatedData) {
+    console.log("Old Data:", oldRowData);
+    console.log("Updated Data:", updatedData);
+
+    let table = document.getElementById("tireTable");
+    let tableWidth = table.offsetWidth; // Запам'ятовуємо ширину таблиці
+
+    // Видаляємо старий запис
+    let deleteResponse = await fetch(WEB_APP_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+            action: "delete",
+            size: oldRowData["SIZE"],
+            brand: oldRowData["Brand"],
+            location: oldRowData["location"],
+            pieces: oldRowData["Pieces"]
+        })
+    });
+
+    let deleteResult = await deleteResponse.text();
+    console.log("Delete Response:", deleteResult);
+
+    if (deleteResult.includes("Deleted")) {
+        // Додаємо оновлений запис
+        let addResponse = await fetch(WEB_APP_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({
+                action: "add",
+                size: updatedData["SIZE"] || oldRowData["SIZE"],
+                price: updatedData["Price"] || oldRowData["Price"],
+                season: updatedData["Season"] || oldRowData["Season"],
+                brand: updatedData["Brand"] || oldRowData["Brand"],
+                pieces: updatedData["Pieces"] || oldRowData["Pieces"],
+                condition: updatedData["New/Used"] || oldRowData["New/Used"],
+                location: updatedData["location"] || oldRowData["location"],
+                number: updatedData["#"] || oldRowData["#"]
+            })
+        });
+
+        let addResult = await addResponse.text();
+        console.log("Add Response:", addResult);
+
+        if (addResult.includes("Success")) {
+            alert("Updated successfully!");
+
+            // Оновлюємо тільки таблицю, без зміщення
+            await loadData();
+
+            // Відновлюємо ширину таблиці після оновлення
+            table.style.width = tableWidth + "px";
+        } else {
+            alert("Error adding updated data: " + addResult);
+        }
+    } else {
+        alert("Error deleting old data: " + deleteResult);
+    }
+}
+
 function filterTable() {
     let size = document.getElementById("searchSize").value.toLowerCase();
     let brand = document.getElementById("searchBrand").value.toLowerCase();
