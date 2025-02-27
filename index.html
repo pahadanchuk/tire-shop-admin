@@ -95,7 +95,7 @@
     </div>
 
     <script>
-        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwhmcF88ZFNPVplrZmwCALeNRHKUdEoqNuHxXkWeYqPuibKQIpeTuOpYyRqV5ImkucG2A/exec";
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyVpMtMZGcO6nAbFEKzW8G0h2xZtbvBH0Mv9LXaZiDIEZTvQCnhe_wOeHPtRIdHWx6EFQ/exec";
 
         function toggleForm() {
             const form = document.getElementById("addForm");
@@ -132,38 +132,61 @@
             toggleForm();
         }
 
-        async function deleteRow(number) {
-            await fetch(WEB_APP_URL, {
-                method: "POST",
-                body: new URLSearchParams({ action: "delete", number: number })
-            });
-            alert("Deleted successfully!");
-            loadData();
-        }
+        async function deleteRow(size, brand, location, pieces) {
+    console.log("Attempting to delete:", size, brand, location, pieces); // Додаємо лог
 
-        async function loadData() {
-            const response = await fetch(WEB_APP_URL);
-            const data = await response.json();
-            // **Сортуємо масив шин за спаданням номера**
-data.sort((a, b) => Number(b["#"]) - Number(a["#"]));
-            let table = document.getElementById("tireTable").getElementsByTagName("tbody")[0];
-            table.innerHTML = "";
-            data.forEach(row => {
-                let tr = document.createElement("tr");
-                ["SIZE", "Price", "Season", "Brand", "Pieces", "New/Used", "location", "#"].forEach(col => {
-                    let td = document.createElement("td");
-                    td.textContent = row[col] || "-";
-                    tr.appendChild(td);
-                });
-                let actionTd = document.createElement("td");
-                let deleteBtn = document.createElement("button");
-                deleteBtn.textContent = "🗑";
-                deleteBtn.onclick = () => deleteRow(row["#"]);
-                actionTd.appendChild(deleteBtn);
-                tr.appendChild(actionTd);
-              table.appendChild(tr); // Додаємо новий рядок у таблицю
-            });
-        }
+    let response = await fetch(WEB_APP_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ 
+            action: "delete", 
+            size: size, 
+            brand: brand, 
+            location: location, 
+            pieces: pieces
+        })
+    });
+
+    let result = await response.text();
+    console.log("Server response:", result); // Логуємо відповідь сервера
+
+    if (result.includes("Deleted")) {
+        alert("Deleted successfully!");
+        loadData();
+    } else {
+        alert("Error deleting tire: " + result);
+    }
+}
+async function loadData() {
+    let response = await fetch(WEB_APP_URL);
+    let data = await response.json();
+
+    let table = document.getElementById("tireTable").getElementsByTagName("tbody")[0];
+    table.innerHTML = "";
+
+    data.forEach(row => {
+        let tr = document.createElement("tr");
+        ["SIZE", "Price", "Season", "Brand", "Pieces", "New/Used", "location", "#"].forEach(col => {
+            let td = document.createElement("td");
+            td.textContent = row[col] || "-";
+            tr.appendChild(td);
+        });
+
+        let actionTd = document.createElement("td");
+        let deleteBtn = document.createElement("button");
+        deleteBtn.textContent = "🗑";
+
+        console.log("Passing to deleteRow:", row["SIZE"], row["Brand"], row["location"], row["Pieces"]); // Додаємо лог
+
+        deleteBtn.onclick = () => {
+            deleteRow(row["SIZE"], row["Brand"], row["location"], row["Pieces"]);
+        };
+
+        actionTd.appendChild(deleteBtn);
+        tr.appendChild(actionTd);
+        table.appendChild(tr);
+    });
+}
 function filterTable() {
     let size = document.getElementById("searchSize").value.toLowerCase();
     let brand = document.getElementById("searchBrand").value.toLowerCase();
