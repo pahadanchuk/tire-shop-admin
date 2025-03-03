@@ -20,7 +20,7 @@
 
 
 /* ВИПРАВЛЕНО: обмежуємо стилі тільки для калькулятора */
-.calculator input, 
+.calculator input:not([type="radio"]), 
 .calculator select, 
 .calculator button {
     display: block;
@@ -64,9 +64,38 @@
         padding: 12px;
     }
 
-    #quantity {
-        width: 100%; /* Робимо скролер на всю ширину */
-    }
+    #quantityOptions {
+    display: flex; /* Розташовуємо кнопки в один ряд */
+    justify-content: center; /* Центруємо */
+    align-items: center;
+    gap: 15px; /* Відстань між кнопками */
+    margin: 10px 0; /* Відступи */
+}
+
+#quantityOptions label {
+    background: yellow;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    border: 2px solid black;
+    min-width: 40px;
+    text-align: center;
+}
+
+#quantityOptions input {
+    display: none; /* Приховуємо стандартні радіокнопки */
+}
+
+#quantityOptions label:hover {
+    background: orange;
+}
+
+#quantityOptions input:checked + label {
+    background: red;
+    color: white;
+}
 }
 
         .table-container { width: 100%; overflow-x: hidden; }
@@ -94,8 +123,14 @@
             <input type="number" id="tirePrice" placeholder="88">
         
             <label>Select quantity:</label>
-            <input type="range" id="quantity" min="1" max="4" value="1" oninput="updateQuantity()">
-            <span id="quantityValue">1</span>
+            <div id="quantityOptions">
+                <label for="qty1"><input type="radio" id="qty1" name="quantity" value="1" checked>1</label>
+                <label for="qty2"><input type="radio" id="qty2" name="quantity" value="2">2</label>
+                <label for="qty3"><input type="radio" id="qty3" name="quantity" value="3">3</label>
+                <label for="qty4"><input type="radio" id="qty4" name="quantity" value="4">4</label>
+                <label for="qty5"><input type="radio" id="qty5" name="quantity" value="5">5</label>
+                <label for="qty6"><input type="radio" id="qty6" name="quantity" value="6">6</label>
+            </div>
         
             <label>Select size:</label>
             <select id="calc_size">
@@ -442,7 +477,7 @@ function filterTable() {
         
         function calculateTotal() {
             let tirePrice = parseFloat(document.getElementById("tirePrice").value);
-            let quantity = parseInt(document.getElementById("quantity").value);
+            let quantity = parseInt(document.querySelector('input[name="quantity"]:checked').value);
             let sizePrice = parseInt(document.getElementById("calc_size").value);
             let condition = document.getElementById("condition").value;
         
