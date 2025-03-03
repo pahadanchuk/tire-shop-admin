@@ -98,7 +98,7 @@
             <span id="quantityValue">1</span>
         
             <label>Select size:</label>
-            <select id="size">
+            <select id="calc_size">
                 <option value="25">14"-16"</option>
                 <option value="27">17"-18"</option>
                 <option value="29">19"-22"</option>
@@ -443,7 +443,7 @@ function filterTable() {
         function calculateTotal() {
             let tirePrice = parseFloat(document.getElementById("tirePrice").value);
             let quantity = parseInt(document.getElementById("quantity").value);
-            let sizePrice = parseInt(document.getElementById("size").value);
+            let sizePrice = parseInt(document.getElementById("calc_size").value);
             let condition = document.getElementById("condition").value;
         
             if (isNaN(tirePrice) || tirePrice <= 0) {
