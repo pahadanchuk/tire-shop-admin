@@ -140,7 +140,7 @@
             </select>
         
             <label>New or Used:</label>
-            <select id="condition">
+           <select id="calc_condition">
                 <option value="used">Used</option>
                 <option value="new">New (+$5 each)</option>
             </select>
@@ -157,6 +157,7 @@
         <input type="text" id="searchSize" placeholder="Enter size" oninput="filterTable()">
         <input type="text" id="searchBrand" placeholder="Enter brand" oninput="filterTable()">
         <input type="text" id="searchNumber" placeholder="Search by # (number)" oninput="filterTable()">
+        <input type="text" id="searchLocation" placeholder="Enter location" oninput="filterTable()">
         <select id="searchPieces" onchange="filterTable()">
             <option value="">Select Pieces</option>
             ${Array.from({ length: 21 }, (_, i) => `<option value="${i}">${i}</option>`).join('')}
@@ -434,6 +435,7 @@ function filterTable() {
     let pieces = document.getElementById("searchPieces").value.toLowerCase();
     let season = document.getElementById("searchSeason").value.toLowerCase();
     let condition = document.getElementById("searchCondition").value.toLowerCase();
+    let location = document.getElementById("searchLocation").value.toLowerCase();
 
     let table = document.getElementById("tireTable").getElementsByTagName("tbody")[0];
     let rows = table.getElementsByTagName("tr");
@@ -456,7 +458,8 @@ function filterTable() {
                 (number === "" || numberText.includes(number)) &&
                 (pieces === "" || piecesText.includes(pieces)) &&
                 (season === "" || seasonText.includes(season)) &&
-                (condition === "" || conditionText.includes(condition))
+                (condition === "" || conditionText.includes(condition)) &&
+                (location === "" || locationText.includes(location))
             ) {
                 rows[i].style.display = "";
             } else {
@@ -479,7 +482,7 @@ function filterTable() {
             let tirePrice = parseFloat(document.getElementById("tirePrice").value);
             let quantity = parseInt(document.querySelector('input[name="quantity"]:checked').value);
             let sizePrice = parseInt(document.getElementById("calc_size").value);
-            let condition = document.getElementById("condition").value;
+        let condition = document.getElementById("calc_condition").value;
         
             if (isNaN(tirePrice) || tirePrice <= 0) {
                 alert("Please enter a valid tire price.");
