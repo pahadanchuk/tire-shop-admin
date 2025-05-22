@@ -6,16 +6,40 @@
     <title>Tire Shop Plus Admin</title>
     <meta name="robots" content="noindex, nofollow">
     <style>
+        .save-btn {
+    display: block;
+    margin: 20px auto; /* центрує по горизонталі */
+    background-color: green;
+    color: white;
+    padding: 10px;
+    cursor: pointer;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    text-align: center;
+}
 .calculator {
-    background-color: black;
+    background-color: rgba(0, 0, 0, 0.8); /* чорний з прозорістю */
     color: yellow;
     padding: 20px;
     border-radius: 5px;
     text-align: center;
     max-width: 400px;
-    margin: auto;
+    margin: 20px auto;
+}
+table, .search-section {
+    background-color: rgba(20, 19, 19, 0.988); /* напівпрозорий чорний */
+    color: white;
+    border-collapse: collapse;
+    width: 90%;
+    margin: 20px auto;
 }
 
+table th, table td {
+    border: 1px solid white;
+    padding: 10px;
+    text-align: center;
+}
 /* СТАРИЙ КОД - ВІН МІГ ЗМІНИТИ ТАБЛИЦЮ */
 
 
@@ -101,8 +125,46 @@
         .table-container { width: 100%; overflow-x: hidden; }
         table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 20px;}
         th, td { padding: 4px; border: 1px solid #ddd; text-align: center; font-size: 12px; white-space: normal; word-wrap: break-word;min-width: 70px;max-width: 120px;}
-        body { font-family: Arial, sans-serif; text-align: center; }
-        header { background-color: #202123; color: #FF0000; padding: 20px; font-size: 24px; font-weight: bold; }
+        body {
+    background: url('technician.jpg') no-repeat center center fixed;
+    background-size: cover;
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+}
+/* Прибрати білий або сірий фон */
+main, .container, .wrapper {
+    background: transparent !important;
+}
+
+/* Прозорий калькулятор */
+.calculator {
+    background-color: rgba(0, 0, 0, 0.7); /* Прозорий чорний */
+    color: yellow;
+    padding: 20px;
+    border-radius: 5px;
+    text-align: center;
+    max-width: 400px;
+    margin: 20px auto;
+}
+
+/* Прозорий блок таблиці */
+.search-section, table {
+    background-color: rgba(0, 0, 0, 0.6);
+    color: white;
+}
+
+/* Якщо форма зверху біла — зроби прозорою */
+form {
+    background: transparent !important;
+}
+header {
+  background-color: transparent;
+  color: #FF0000;
+  padding: 20px;
+  font-size: 24px;
+  font-weight: bold;
+}
         .container { max-width: 90vw; margin: auto; padding: 10px; background-color: #f4f4f4; border-radius: 5px; }
         th { background-color: #FF0000; color: white; }
         .add-btn { width: 150px; padding: 8px; font-size: 16px; background-color: #FF0000; color: white; cursor: pointer; border: none; border-radius: 5px; }
@@ -115,45 +177,72 @@
 <body>
     <header>
         <img src="logo2.png" alt="Tire Shop Plus Logo" class="logo">
-        <h2 style="color: #FFAA00;">Tire Shop Plus</h2>
-        <h2 style="color: #FF0000;">Admin</h2>
-        <div class="calculator">
-            <h2>Tire Price Calculator</h2>
-            <label>Enter tire price ($):</label>
-            <input type="number" id="tirePrice" placeholder="88">
-        
-            <label>Select quantity:</label>
-            <div id="quantityOptions">
-                <label for="qty1"><input type="radio" id="qty1" name="quantity" value="1" checked>1</label>
-                <label for="qty2"><input type="radio" id="qty2" name="quantity" value="2">2</label>
-                <label for="qty3"><input type="radio" id="qty3" name="quantity" value="3">3</label>
-                <label for="qty4"><input type="radio" id="qty4" name="quantity" value="4">4</label>
-                <label for="qty5"><input type="radio" id="qty5" name="quantity" value="5">5</label>
-                <label for="qty6"><input type="radio" id="qty6" name="quantity" value="6">6</label>
-            </div>
-        
-            <label>Select size:</label>
-            <select id="calc_size">
-                <option value="25">14"-16"</option>
-                <option value="27">17"-18"</option>
-                <option value="29">19"-22"</option>
-            </select>
-        
-            <label>New or Used:</label>
-           <select id="calc_condition">
-                <option value="used">Used</option>
-                <option value="new">New (+$5 each)</option>
-            </select>
-        
-            <button onclick="calculateTotal()">Calculate</button>
-        
-            <h3>Full Price: $<span id="fullPrice">0.00</span></h3>
-            <h3>GST (5%): $<span id="gstPrice">0.00</span></h3>
-            <h3>Total Price: $<span id="totalPrice">0.00</span></h3>
-        </div>
+        <h2 style="color: orange; text-align: center;">Search for Tires</h2>
+        <h2 style="color: #FF0000; text-align: center;">Admin</h2>
+       
+       <!-- Кнопка відкриття калькулятора -->
+
     </header>
+    <!-- Кнопка відкриття калькулятора -->
+<div style="text-align:center; margin-top: 20px;">
+    <button onclick="openCalculator()" style="background: none; border: none; cursor: pointer;">
+        <img src="calculator-icon.png" alt="Calculator" width="50">
+    </button>
+</div>
+
+<!-- Сам калькулятор -->
+<div id="calculator" class="calculator" style="display: none; position: relative;">
+    <!-- Хрестик -->
+    <button onclick="closeCalculator()" style="
+    position: absolute;
+    top: 5px;
+    left: 180px;
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 28px;
+    font-weight: bold;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    margin: 0;
+">&times;</button>
+
+    <h2>Tire Price Calculator</h2>
+    <label>Enter tire price ($):</label>
+    <input type="number" id="tirePrice" placeholder="88">
+
+    <label>Select quantity:</label>
+    <div id="quantityOptions">
+        <label for="qty1"><input type="radio" id="qty1" name="quantity" value="1" checked>1</label>
+        <label for="qty2"><input type="radio" id="qty2" name="quantity" value="2">2</label>
+        <label for="qty3"><input type="radio" id="qty3" name="quantity" value="3">3</label>
+        <label for="qty4"><input type="radio" id="qty4" name="quantity" value="4">4</label>
+        <label for="qty5"><input type="radio" id="qty5" name="quantity" value="5">5</label>
+        <label for="qty6"><input type="radio" id="qty6" name="quantity" value="6">6</label>
+    </div>
+
+    <label>Select size:</label>
+    <select id="calc_size">
+        <option value="25">14"-16"</option>
+        <option value="27">17"-18"</option>
+        <option value="29">19"-22"</option>
+    </select>
+
+    <label>New or Used:</label>
+    <select id="calc_condition">
+        <option value="used">Used</option>
+        <option value="new">New (+$5 each)</option>
+    </select>
+
+    <button onclick="calculateTotal()">Calculate</button>
+
+    <h3>Full Price: $<span id="fullPrice">0.00</span></h3>
+    <h3>GST (5%): $<span id="gstPrice">0.00</span></h3>
+    <h3>Total Price: $<span id="totalPrice">0.00</span></h3>
+</div>
     <div class="container">
-        <h2>Search for Tires</h2>
+        <h2 style="color: orange; text-align: center;">Search for Tires</h2>
         <input type="text" id="searchSize" placeholder="Enter size" oninput="filterTable()">
         <input type="text" id="searchBrand" placeholder="Enter brand" oninput="filterTable()">
         <input type="text" id="searchNumber" placeholder="Search by # (number)" oninput="filterTable()">
@@ -512,6 +601,14 @@ function filterTable() {
         }
         </script>
     
+    <script>
+        function openCalculator() {
+            document.getElementById("calculator").style.display = "block";
+        }
         
+        function closeCalculator() {
+            document.getElementById("calculator").style.display = "none";
+        }
+        </script>    
 </body>
 </html>
