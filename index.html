@@ -18,6 +18,16 @@
     font-size: 16px;
     text-align: center;
 }
+.close-btn {
+    background-color: red;
+    color: white;
+    padding: 10px;
+    cursor: pointer;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    margin-left: 10px;
+}
 .calculator {
     background-color: rgba(0, 0, 0, 0.8); /* чорний з прозорістю */
     color: yellow;
@@ -293,6 +303,7 @@ header {
             <input type="text" id="location" placeholder="Location">
             <input type="text" id="number" placeholder="#">
             <button class="save-btn" onclick="addTire()">Done</button>
+            <button class="close-btn" onclick="closeForm()">Close</button>
         </div>
 
         <div class="table-container">
@@ -326,7 +337,10 @@ header {
                 document.querySelectorAll("#addForm input, #addForm select").forEach(el => el.value = "");
             }
         }
-
+        function closeForm() {
+    const form = document.getElementById("addForm");
+    form.style.display = "none";
+}
         async function addTire() {
     const fields = ["size", "price", "season", "brand", "pieces", "condition", "location"];
     let formData = { action: "add" };
@@ -356,20 +370,18 @@ header {
 
         // Вибір шаблону
         let pattern = null;
-        if (id === "price" || id === "pieces") {
-            pattern = /^[0-9]+$/;
-        } else if (id !== "season") {
-            pattern = /^[a-zA-Z0-9]+$/;
-        }
+        if (id === "pieces" || id === "price") {
+    pattern = /^[a-zA-Z0-9]+$/;
+} else if (id !== "season") {
+    pattern = /^[a-zA-Z0-9]+$/;
+}
 
         // Перевірка символів
         if (pattern && value && !pattern.test(value)) {
             el.style.border = "2px solid red";
             const msg = document.createElement("div");
             msg.className = "error-message";
-            msg.textContent = (id === "price" || id === "pieces")
-                ? "Only numbers allowed"
-                : "Only letters and numbers allowed (no spaces or symbols)";
+            msg.textContent = "Only letters and numbers allowed (no spaces or symbols)";
             el.parentNode.insertBefore(msg, el.nextSibling);
             isValid = false;
         }
@@ -614,7 +626,7 @@ function filterTable() {
             if (
                 (size === "" || sizeText.includes(size)) &&
                 (brand === "" || brandText.includes(brand)) &&
-                (number === "" || numberText.includes(number)) &&
+                (number === "" || numberText === number) &&
                 (pieces === "" || piecesText.includes(pieces)) &&
                 (season === "" || seasonText.includes(season)) &&
                 (condition === "" || conditionText.includes(condition)) &&
