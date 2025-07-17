@@ -52,6 +52,12 @@ table th, table td {
     margin: 10px 0;
     padding: 8px;
 }
+.error-message {
+        color: red;
+        font-size: 12px;
+        margin-top: 2px;
+        text-align: left;
+    }
 
 .calculator button {
     background-color: yellow;
@@ -322,30 +328,95 @@ header {
         }
 
         async function addTire() {
-            const fields = ["size", "price", "season", "brand", "pieces", "condition", "location", "number"];
-            let hasData = false;
-            let formData = { action: "add" };
+    const fields = ["size", "price", "season", "brand", "pieces", "condition", "location"];
+    let formData = { action: "add" };
+    let isValid = true;
 
-            fields.forEach(id => {
-                const value = document.getElementById(id).value.trim();
-                formData[id] = value;
-                if (value) hasData = true;
-            });
+    fields.forEach(id => {
+        const el = document.getElementById(id);
+        const value = el.value.trim();
+        formData[id] = value;
 
-            if (!hasData) {
-                toggleForm();
-                return;
-            }
-
-            await fetch(WEB_APP_URL, {
-                method: "POST",
-                body: new URLSearchParams(formData)
-            });
-
-            alert("Added successfully!");
-            loadData();
-            toggleForm();
+        // Очистити попередню помилку
+        el.style.border = "";
+        const existingError = el.nextElementSibling;
+        if (existingError && existingError.classList.contains("error-message")) {
+            existingError.remove();
         }
+
+        // Якщо порожнє
+        if (!value) {
+            el.style.border = "2px solid red";
+            const msg = document.createElement("div");
+            msg.className = "error-message";
+            msg.textContent = "This field is required";
+            el.parentNode.insertBefore(msg, el.nextSibling);
+            isValid = false;
+        }
+
+        // Вибір шаблону
+        let pattern = null;
+        if (id === "price" || id === "pieces") {
+            pattern = /^[0-9]+$/;
+        } else if (id !== "season") {
+            pattern = /^[a-zA-Z0-9]+$/;
+        }
+
+        // Перевірка символів
+        if (pattern && value && !pattern.test(value)) {
+            el.style.border = "2px solid red";
+            const msg = document.createElement("div");
+            msg.className = "error-message";
+            msg.textContent = (id === "price" || id === "pieces")
+                ? "Only numbers allowed"
+                : "Only letters and numbers allowed (no spaces or symbols)";
+            el.parentNode.insertBefore(msg, el.nextSibling);
+            isValid = false;
+        }
+
+        // Live перевірка
+        el.addEventListener("input", () => {
+            const val = el.value.trim();
+            const next = el.nextElementSibling;
+            const passesRequired = val !== "";
+            const passesPattern = !pattern || pattern.test(val);
+
+            if (passesRequired && passesPattern) {
+                el.style.border = "";
+                if (next && next.classList.contains("error-message")) next.remove();
+            } else {
+                el.style.border = "2px solid red";
+                if (!next || !next.classList.contains("error-message")) {
+                    const msg = document.createElement("div");
+                    msg.className = "error-message";
+                    msg.textContent = !passesRequired
+                        ? "This field is required"
+                        : (id === "price" || id === "pieces")
+                            ? "Only numbers allowed"
+                            : "Only letters and numbers allowed (no spaces or symbols)";
+                    el.parentNode.insertBefore(msg, el.nextSibling);
+                }
+            }
+        });
+    });
+
+    // # — не обов’язкове
+    formData["number"] = document.getElementById("number").value.trim();
+
+    if (!isValid) {
+        alert("Please fix the errors before submitting.");
+        return;
+    }
+
+    await fetch(WEB_APP_URL, {
+        method: "POST",
+        body: new URLSearchParams(formData)
+    });
+
+    alert("Added successfully!");
+    loadData();
+    toggleForm();
+}
 
         async function deleteRow(size, brand, location, pieces) {
     console.log("Attempting to delete:", size, brand, location, pieces); // Додаємо лог
@@ -547,7 +618,7 @@ function filterTable() {
                 (pieces === "" || piecesText.includes(pieces)) &&
                 (season === "" || seasonText.includes(season)) &&
                 (condition === "" || conditionText.includes(condition)) &&
-                (location === "" || locationText.includes(location))
+                (location === "" || locationText.startsWith(location))
             ) {
                 rows[i].style.display = "";
             } else {
