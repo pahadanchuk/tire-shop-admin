@@ -198,6 +198,9 @@ header {
        <!-- Кнопка відкриття калькулятора -->
 
     </header>
+    <div id="loader" style="display:none; text-align: center; margin: 20px;">
+        <img src="loader.gif" alt="Loading..." style="width: 150px;">
+    </div>
     <!-- Кнопка відкриття калькулятора -->
 <div style="text-align:center; margin-top: 20px;">
     <button onclick="openCalculator()" style="background: none; border: none; cursor: pointer;">
@@ -258,30 +261,63 @@ header {
 </div>
     <div class="container">
         <h2 style="color: orange; text-align: center;">Search for Tires</h2>
-        <input type="text" id="searchSize" placeholder="Enter size" oninput="filterTable()">
-        <input type="text" id="searchBrand" placeholder="Enter brand" oninput="filterTable()">
-        <input type="text" id="searchNumber" placeholder="Search by # (number)" oninput="filterTable()">
-        <input type="text" id="searchLocation" placeholder="Enter location" oninput="filterTable()">
-        <select id="searchPieces" onchange="filterTable()">
-            <option value="">Select Pieces</option>
-            ${Array.from({ length: 21 }, (_, i) => `<option value="${i}">${i}</option>`).join('')}
-        </select>
-        <select id="searchSeason" onchange="filterTable()">
-            <option value="">Select Season</option>
-            <option value="A/T">A/T</option>
-            <option value="A/S">A/S</option>
-            <option value="A/W">A/W</option>
-            <option value="Wint">Wint</option>
-            <option value="M/T">M/T</option>
-        </select>
-        <select id="searchCondition" onchange="filterTable()">
-            <option value="">Select Condition</option>
-            <option value="New">New</option>
-            <option value="Used">Used</option>
-        </select>
+        <!-- КНОПКА ОЧИСТКИ ЗЛІВА -->
+        <!-- 🔍 Пошук і кнопки в одному рядку -->
+<div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-start; margin-bottom: 20px;">
+    <!-- 🗑 Кнопка смітника перед size -->
+    <button onclick="clearFilters()" style="
+        background-color: red;
+        color: white;
+        padding: 8px 12px;
+        font-size: 16px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;">
+        🗑
+    </button>
 
-        <button class="add-btn" onclick="toggleForm()">+ Add</button>
-        
+    <!-- Поля фільтрації -->
+    <input type="text" id="searchSize" placeholder="Enter size" oninput="filterTable()">
+    <input type="text" id="searchBrand" placeholder="Enter brand" oninput="filterTable()">
+    <input type="text" id="searchNumber" placeholder="Search by # (number)" oninput="filterTable()">
+    <input type="text" id="searchLocation" placeholder="Enter location" oninput="filterTable()">
+
+    <select id="searchPieces" onchange="filterTable()">
+        <option value="">Select Pieces</option>
+        ${Array.from({ length: 21 }, (_, i) => `<option value="${i}">${i}</option>`).join('')}
+    </select>
+
+    <select id="searchSeason" onchange="filterTable()">
+        <option value="">Select Season</option>
+        <option value="A/T">A/T</option>
+        <option value="A/S">A/S</option>
+        <option value="A/W">A/W</option>
+        <option value="Wint">Wint</option>
+        <option value="M/T">M/T</option>
+    </select>
+
+    <select id="searchCondition" onchange="filterTable()">
+        <option value="">Select Condition</option>
+        <option value="New">New</option>
+        <option value="Used">Used</option>
+    </select>
+
+    <!-- ➕ Кнопка Add після select -->
+    
+</div>
+        <!-- Add Button окремо по центру -->
+<div style="text-align: center; margin-bottom: 20px;">
+    <button class="add-btn" onclick="toggleForm()" style="
+        background-color: red;
+        color: white;
+        padding: 10px 20px;
+        font-size: 16px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;">
+        + Add
+    </button>
+</div>
         <div id="addForm" class="form-container">
             <input type="text" id="size" placeholder="Size">
             <input type="text" id="price" placeholder="Price">
@@ -419,12 +455,12 @@ header {
         alert("Please fix the errors before submitting.");
         return;
     }
-
+    document.getElementById("loader").style.display = "block";
     await fetch(WEB_APP_URL, {
         method: "POST",
         body: new URLSearchParams(formData)
     });
-
+    document.getElementById("loader").style.display = "none";
     alert("Added successfully!");
     loadData();
     toggleForm();
@@ -432,7 +468,7 @@ header {
 
         async function deleteRow(size, brand, location, pieces) {
     console.log("Attempting to delete:", size, brand, location, pieces); // Додаємо лог
-
+    document.getElementById("loader").style.display = "block";
     let response = await fetch(WEB_APP_URL, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -451,6 +487,7 @@ header {
     if (result.includes("Deleted")) {
         alert("Deleted successfully!");
         loadData();
+        document.getElementById("loader").style.display = "none";
     } else {
         alert("Error deleting tire: " + result);
     }
@@ -546,6 +583,7 @@ async function saveEditedRow(rowElement, oldRowData, updatedData) {
     let table = document.getElementById("tireTable");
 
     // Видаляємо старий запис
+    document.getElementById("loader").style.display = "block";
     let deleteResponse = await fetch(WEB_APP_URL, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -587,6 +625,7 @@ async function saveEditedRow(rowElement, oldRowData, updatedData) {
 
             // Оновлюємо тільки таблицю, без зміщення
             await loadData();
+            document.getElementById("loader").style.display = "none";
 
             // Скидаємо розмір таблиці
             table.style.width = "";
@@ -681,6 +720,18 @@ function filterTable() {
             document.getElementById("gstPrice").textContent = gst.toFixed(2);
             document.getElementById("totalPrice").textContent = totalPrice.toFixed(2);
         }
+        function clearFilters() {
+    document.getElementById("searchSize").value = "";
+    document.getElementById("searchBrand").value = "";
+    document.getElementById("searchNumber").value = "";
+    document.getElementById("searchLocation").value = "";
+    document.getElementById("searchPieces").value = "";
+    document.getElementById("searchSeason").value = "";
+    document.getElementById("searchCondition").value = "";
+
+    filterTable(); // Оновлює таблицю без фільтрів
+}
+
         </script>
     
     <script>
@@ -691,6 +742,7 @@ function filterTable() {
         function closeCalculator() {
             document.getElementById("calculator").style.display = "none";
         }
+        
         </script>    
 </body>
 </html>
