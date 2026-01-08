@@ -188,6 +188,29 @@ header {
         .form-container input, .form-container select { margin: 5px; padding: 8px; width: calc(100% - 20px); }
         .save-btn { background-color: green; color: white; padding: 10px; cursor: pointer; border: none; border-radius: 5px; font-size: 16px; }
         .logo { display: block; margin: 0 auto; width: 150px; height: auto; }
+        /* ===== MARK ROW (CHECK) ===== */
+.checked-row td {
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+
+.mark-btn {
+  background: transparent;
+  border: 2px solid #ffd400;
+  color: #ffd400;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  margin-right: 6px;
+}
+
+.mark-btn.checked {
+  background: #ffd400;
+  color: #000;
+}
     </style>
 </head>
 <body>
@@ -275,6 +298,17 @@ header {
         cursor: pointer;">
         🗑
     </button>
+        <!-- ✅ Clear all marks -->
+        <button onclick="clearMarks()" style="
+        background-color: orange;
+        color: black;
+        padding: 8px 12px;
+        font-size: 16px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;">
+        Clear marks
+    </button>
 
     <!-- Поля фільтрації -->
     <input type="text" id="searchSize" placeholder="Enter size" oninput="filterTable()">
@@ -330,6 +364,10 @@ header {
                 <option value="A/W">A/W</option>
             </select>
             <input type="text" id="brand" placeholder="Brand/Model">
+            <!-- Model (тільки для New) -->
+<div id="modelWrap" style="display:none;">
+    <input type="text" id="model" placeholder="Model">
+</div>
             <input type="text" id="pieces" placeholder="Pieces">
             <select id="condition">
                 <option value="">Select Condition</option>
@@ -363,7 +401,60 @@ header {
     </div>
 
     <script>
-        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbx12uIOXUF5zGP-3ZHQ2WY1l4PR3gpUK6aZlzqawAd6nclWAZStjlCucTCVZM-GAAIrfQ/exec";
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbza_jr227dtozSg2Yp4fpWIjeYxeFTTtfbuBtuMt6mkTbto9wtZPJk-O9tZJ-1MGmdtiQ/exec";
+
+        // ===== MARKS (localStorage) =====
+const MARKS_KEY = "tsp_marked_rows_v1";
+
+function getMarksSet() {
+    try {
+        return new Set(JSON.parse(localStorage.getItem(MARKS_KEY) || "[]"));
+    } catch {
+        return new Set();
+    }
+}
+
+function saveMarksSet(set) {
+    localStorage.setItem(MARKS_KEY, JSON.stringify([...set]));
+}
+
+// Робимо стабільний ключ рядка (щоб позначка не зникала після оновлень)
+function makeRowKey(row) {
+    return [
+        row["SIZE"] || "",
+        row["Price"] || "",
+        row["Season"] || "",
+        row["Brand"] || "",
+        row["Pieces"] || "",
+        row["New/Used"] || "",
+        row["location"] || "",
+        row["#"] || ""
+    ].join("|");
+}
+
+function toggleMarkRow(tr, rowKey, btn) {
+    const marks = getMarksSet();
+
+    if (marks.has(rowKey)) {
+        marks.delete(rowKey);
+        tr.classList.remove("checked-row");
+        btn.classList.remove("checked");
+    } else {
+        marks.add(rowKey);
+        tr.classList.add("checked-row");
+        btn.classList.add("checked");
+    }
+
+    saveMarksSet(marks);
+}
+
+function clearMarks() {
+    localStorage.removeItem(MARKS_KEY);
+
+    // прибираємо перекреслення відразу (без перезавантаження)
+    document.querySelectorAll("#tireTable tbody tr").forEach(tr => tr.classList.remove("checked-row"));
+    document.querySelectorAll(".mark-btn").forEach(b => b.classList.remove("checked"));
+}
 
         function toggleForm() {
             const form = document.getElementById("addForm");
@@ -380,6 +471,66 @@ header {
         async function addTire() {
     const fields = ["size", "price", "season", "brand", "pieces", "condition", "location"];
     let formData = { action: "add" };
+    // Model: обов'язковий тільки якщо condition = New
+const condVal = (document.getElementById("condition").value || "").toLowerCase();
+const modelEl = document.getElementById("model");
+const modelVal = modelEl ? modelEl.value.trim() : "";
+
+// Додаємо в formData завжди (щоб на Sheets писалось), але валідація тільки для New
+formData["model"] = modelVal;
+
+if (condVal === "new") {
+    // очистити попередню помилку
+    if (modelEl) {
+        modelEl.style.border = "";
+        const existingError = modelEl.nextElementSibling;
+        if (existingError && existingError.classList.contains("error-message")) existingError.remove();
+
+        if (!modelVal) {
+            modelEl.style.border = "2px solid red";
+            const msg = document.createElement("div");
+            msg.className = "error-message";
+            msg.textContent = "Model is required for New tires";
+            modelEl.parentNode.insertBefore(msg, modelEl.nextSibling);
+            isValid = false;
+        } else {
+            // ті ж правила як ти хотів: тільки букви/цифри без пробілів/символів
+            const pattern = /^[a-zA-Z0-9]+$/;
+            if (!pattern.test(modelVal)) {
+                modelEl.style.border = "2px solid red";
+                const msg = document.createElement("div");
+                msg.className = "error-message";
+                msg.textContent = "Only letters and numbers allowed (no spaces or symbols)";
+                modelEl.parentNode.insertBefore(msg, modelEl.nextSibling);
+                isValid = false;
+            }
+        }
+
+        // live перевірка тільки коли поле показане (тобто New)
+        modelEl.addEventListener("input", () => {
+            if ((document.getElementById("condition").value || "").toLowerCase() !== "new") return;
+
+            const val = modelEl.value.trim();
+            const pattern = /^[a-zA-Z0-9]+$/;
+            const next = modelEl.nextElementSibling;
+
+            if (val && pattern.test(val)) {
+                modelEl.style.border = "";
+                if (next && next.classList.contains("error-message")) next.remove();
+            } else {
+                modelEl.style.border = "2px solid red";
+                if (!next || !next.classList.contains("error-message")) {
+                    const msg = document.createElement("div");
+                    msg.className = "error-message";
+                    msg.textContent = !val
+                        ? "Model is required for New tires"
+                        : "Only letters and numbers allowed (no spaces or symbols)";
+                    modelEl.parentNode.insertBefore(msg, modelEl.nextSibling);
+                }
+            }
+        });
+    }
+}
     let isValid = true;
 
     fields.forEach(id => {
@@ -465,6 +616,23 @@ header {
     loadData();
     toggleForm();
 }
+function syncModelVisibility() {
+    const conditionEl = document.getElementById("condition");
+    const wrap = document.getElementById("modelWrap");
+    const modelEl = document.getElementById("model");
+    if (!conditionEl || !wrap || !modelEl) return;
+
+    const isNew = (conditionEl.value || "").toLowerCase() === "new";
+    wrap.style.display = isNew ? "block" : "none";
+
+    if (!isNew) {
+        modelEl.value = "";
+        // прибрати помилки якщо були
+        modelEl.style.border = "";
+        const next = modelEl.nextElementSibling;
+        if (next && next.classList.contains("error-message")) next.remove();
+    }
+}
 
         async function deleteRow(size, brand, location, pieces) {
     console.log("Attempting to delete:", size, brand, location, pieces); // Додаємо лог
@@ -512,11 +680,33 @@ async function loadData() {
         ["SIZE", "Price", "Season", "Brand", "Pieces", "New/Used", "location", "#"].forEach(col => {
             let td = document.createElement("td");
             td.textContent = row[col] || "-";
+            // Tooltip для Brand: показує Model при наведенні
+if (col === "Brand") {
+    const model = row["Model"] || row["model"] || "";
+    if (model) td.title = "Model: " + model;
+}
             td.setAttribute("data-col", col);
             tr.appendChild(td);
         });
 
         let actionTd = document.createElement("td");
+
+        // ===== MARK BUTTON (•) =====
+const rowKey = makeRowKey(row);
+const marks = getMarksSet();
+
+let markBtn = document.createElement("button");
+markBtn.className = "mark-btn";
+markBtn.type = "button";
+markBtn.textContent = "•";
+
+// Відновлюємо перекреслення після reload / loadData()
+if (marks.has(rowKey)) {
+    tr.classList.add("checked-row");
+    markBtn.classList.add("checked");
+}
+
+markBtn.onclick = () => toggleMarkRow(tr, rowKey, markBtn);
 
         // Кнопка редагування (✏️)
         let editBtn = document.createElement("button");
@@ -528,8 +718,9 @@ async function loadData() {
         deleteBtn.textContent = "🗑";
         deleteBtn.onclick = () => deleteRow(row["SIZE"], row["Brand"], row["location"], row["Pieces"]);
 
-        actionTd.appendChild(editBtn);
-        actionTd.appendChild(deleteBtn);
+        actionTd.appendChild(markBtn);
+actionTd.appendChild(editBtn);
+actionTd.appendChild(deleteBtn);
         tr.appendChild(actionTd);
 
         table.appendChild(tr);
@@ -681,6 +872,12 @@ function filterTable() {
         window.onload = () => {
             loadData();
             document.getElementById("searchPieces").innerHTML += Array.from({ length: 21 }, (_, i) => `<option value="${i}">${i}</option>`).join('');
+                // показувати/ховати поле Model для New
+    const conditionEl = document.getElementById("condition");
+    if (conditionEl) {
+        conditionEl.addEventListener("change", syncModelVisibility);
+    }
+    syncModelVisibility();
         };
     </script>
     <script>
