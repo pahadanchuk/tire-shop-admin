@@ -211,6 +211,27 @@ header {
   background: #ffd400;
   color: #000;
 }
+/* Edit: extra model row under edited row */
+.model-edit-row td{
+  background: rgba(0,0,0,0.55);
+  padding: 8px;
+}
+.model-edit-wrap{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  justify-content:center;
+  flex-wrap:wrap;
+}
+.model-edit-wrap label{
+  color: #ffd400;
+  font-weight: bold;
+}
+.model-edit-wrap input{
+  max-width: 260px;
+  width: 100%;
+  padding: 8px;
+}
     </style>
 </head>
 <body>
@@ -297,18 +318,20 @@ header {
         border-radius: 5px;
         cursor: pointer;">
         🗑
-    </button>
-        <!-- ✅ Clear all marks -->
-        <button onclick="clearMarks()" style="
+        <button onclick="clearMarks()" title="Clear marks" style="
         background-color: orange;
         color: black;
-        padding: 8px 12px;
-        font-size: 16px;
+        width: 42px;
+        height: 42px;
+        font-size: 20px;
         border: none;
-        border-radius: 5px;
-        cursor: pointer;">
-        Clear marks
-    </button>
+        border-radius: 50%;
+        cursor: pointer;
+        display:flex;
+        align-items:center;
+        justify-content:center;">
+        🧽
+</button>
 
     <!-- Поля фільтрації -->
     <input type="text" id="searchSize" placeholder="Enter size" oninput="filterTable()">
@@ -728,44 +751,96 @@ actionTd.appendChild(deleteBtn);
 }
 function editRow(rowElement, oldRowData) {
     let table = document.getElementById("tireTable");
-    let tableWidth = table.offsetWidth; // Запам’ятовуємо ширину таблиці
-    let tableHeight = table.offsetHeight; // Запам’ятовуємо висоту таблиці
+    let tableWidth = table.offsetWidth;
+    let tableHeight = table.offsetHeight;
 
-    // Фіксуємо розмір таблиці перед редагуванням
+    // фіксуємо розмір таблиці, щоб не скакала
     table.style.width = tableWidth + "px";
     table.style.height = tableHeight + "px";
-    table.style.tableLayout = "fixed"; 
+    table.style.tableLayout = "fixed";
 
     let cells = rowElement.getElementsByTagName("td");
     let actionTd = rowElement.lastChild;
 
-    // Прибираємо старі кнопки
+    // прибрати кнопки з Action
     actionTd.innerHTML = "";
 
-    // Перетворюємо комірки в поля введення
+    // якщо вже є "Model" рядок під цим рядком — видалити (щоб не дублювався)
+    const next = rowElement.nextElementSibling;
+    if (next && next.classList.contains("model-edit-row")) next.remove();
+
+    // робимо інпути в клітинках (усі колонки окрім Action)
     let updatedData = {};
     for (let i = 0; i < cells.length - 1; i++) {
         let colName = cells[i].getAttribute("data-col");
         let input = document.createElement("input");
         input.value = cells[i].textContent.trim();
-        input.style.width = "100%"; // Щоб поле не виходило за розміри комірки
+        input.style.width = "100%";
 
         cells[i].textContent = "";
         cells[i].appendChild(input);
 
+        updatedData[colName] = input.value.trim();
         input.oninput = () => updatedData[colName] = input.value.trim();
     }
 
-    // Кнопка "Зберегти" (✅)
+    // ===== ДОДАТКОВИЙ РЯДОК "MODEL" під редагованим рядком =====
+    const modelRow = document.createElement("tr");
+    modelRow.className = "model-edit-row";
+
+    const modelTd = document.createElement("td");
+    modelTd.colSpan = 9; // 8 колонок + Action = 9
+
+    const wrap = document.createElement("div");
+    wrap.className = "model-edit-wrap";
+
+    const lbl = document.createElement("label");
+    lbl.textContent = "Model:";
+
+    const modelInput = document.createElement("input");
+    modelInput.type = "text";
+    modelInput.placeholder = "Model";
+    modelInput.value = (oldRowData["Model"] || oldRowData["model"] || "").trim();
+
+    // зберігаємо в updatedData
+    updatedData["Model"] = modelInput.value.trim();
+    modelInput.addEventListener("input", () => {
+        updatedData["Model"] = modelInput.value.trim();
+    });
+
+    wrap.appendChild(lbl);
+    wrap.appendChild(modelInput);
+    modelTd.appendChild(wrap);
+    modelRow.appendChild(modelTd);
+
+    // вставляємо modelRow одразу під редагованим рядком
+    rowElement.parentNode.insertBefore(modelRow, rowElement.nextSibling);
+
+    // ===== кнопки Save / Cancel =====
     let saveBtn = document.createElement("button");
     saveBtn.textContent = "✅";
     saveBtn.onclick = async () => {
         await saveEditedRow(rowElement, oldRowData, updatedData);
-        table.style.width = ""; // Скидаємо фіксацію ширини
-        table.style.height = ""; // Скидаємо фіксацію висоти
+
+        // прибрати рядок Model (loadData все одно перемалює, але хай буде чисто)
+        if (modelRow && modelRow.parentNode) modelRow.remove();
+
+        // скинути фіксацію таблиці
+        table.style.width = "";
+        table.style.height = "";
+    };
+
+    let cancelBtn = document.createElement("button");
+    cancelBtn.textContent = "✖️";
+    cancelBtn.onclick = async () => {
+        if (modelRow && modelRow.parentNode) modelRow.remove();
+        table.style.width = "";
+        table.style.height = "";
+        await loadData();
     };
 
     actionTd.appendChild(saveBtn);
+    actionTd.appendChild(cancelBtn);
 }
 async function saveEditedRow(rowElement, oldRowData, updatedData) {
     console.log("Old Data:", oldRowData);
@@ -796,16 +871,17 @@ async function saveEditedRow(rowElement, oldRowData, updatedData) {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
             body: new URLSearchParams({
-                action: "add",
-                size: updatedData["SIZE"] || oldRowData["SIZE"],
-                price: updatedData["Price"] || oldRowData["Price"],
-                season: updatedData["Season"] || oldRowData["Season"],
-                brand: updatedData["Brand"] || oldRowData["Brand"],
-                pieces: updatedData["Pieces"] || oldRowData["Pieces"],
-                condition: updatedData["New/Used"] || oldRowData["New/Used"],
-                location: updatedData["location"] || oldRowData["location"],
-                number: updatedData["#"] || oldRowData["#"]
-            })
+  action: "add",
+  size: updatedData["SIZE"] || oldRowData["SIZE"],
+  price: updatedData["Price"] || oldRowData["Price"],
+  season: updatedData["Season"] || oldRowData["Season"],
+  brand: updatedData["Brand"] || oldRowData["Brand"],
+  model: (updatedData["Model"] ?? oldRowData["Model"] ?? oldRowData["model"] ?? "").trim(),
+  pieces: updatedData["Pieces"] || oldRowData["Pieces"],
+  condition: updatedData["New/Used"] || oldRowData["New/Used"],
+  location: updatedData["location"] || oldRowData["location"],
+  number: updatedData["#"] || oldRowData["#"]
+})
         });
 
         let addResult = await addResponse.text();
