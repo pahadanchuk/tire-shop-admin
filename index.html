@@ -776,7 +776,12 @@ function editRow(rowElement, oldRowData) {
     for (let i = 0; i < cells.length - 1; i++) {
         let colName = cells[i].getAttribute("data-col");
         let input = document.createElement("input");
-        input.value = cells[i].textContent.trim();
+        let cellText = cells[i].textContent.trim();
+
+// тільки для колонки "#": якщо показано "-", то в input ставимо пусто
+if (colName === "#" && cellText === "-") cellText = "";
+
+input.value = cellText;
         input.style.width = "100%";
 
         cells[i].textContent = "";
@@ -882,7 +887,9 @@ async function saveEditedRow(rowElement, oldRowData, updatedData) {
   pieces: updatedData["Pieces"] || oldRowData["Pieces"],
   condition: updatedData["New/Used"] || oldRowData["New/Used"],
   location: updatedData["location"] || oldRowData["location"],
-  number: updatedData["#"] || oldRowData["#"]
+  number: ((updatedData["#"] ?? oldRowData["#"] ?? "").toString().trim() === "-")
+  ? ""
+  : (updatedData["#"] ?? oldRowData["#"] ?? "").toString().trim()
 })
         });
 
