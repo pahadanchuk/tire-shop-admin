@@ -636,8 +636,9 @@ if (condVal === "new") {
     });
     document.getElementById("loader").style.display = "none";
     alert("Added successfully!");
-    loadData();
-    toggleForm();
+await loadData();
+filterTable();
+toggleForm();
 }
 function syncModelVisibility() {
     const conditionEl = document.getElementById("condition");
@@ -677,8 +678,9 @@ function syncModelVisibility() {
 
     if (result.includes("Deleted")) {
         alert("Deleted successfully!");
-        loadData();
-        document.getElementById("loader").style.display = "none";
+        await loadData();
+filterTable();
+document.getElementById("loader").style.display = "none";
     } else {
         alert("Error deleting tire: " + result);
     }
@@ -892,7 +894,8 @@ async function saveEditedRow(rowElement, oldRowData, updatedData) {
 
             // Оновлюємо тільки таблицю, без зміщення
             await loadData();
-            document.getElementById("loader").style.display = "none";
+filterTable();
+document.getElementById("loader").style.display = "none";
 
             // Скидаємо розмір таблиці
             table.style.width = "";
@@ -945,16 +948,17 @@ function filterTable() {
         }
     }
 }
-        window.onload = () => {
-            loadData();
-            document.getElementById("searchPieces").innerHTML += Array.from({ length: 21 }, (_, i) => `<option value="${i}">${i}</option>`).join('');
-                // показувати/ховати поле Model для New
+window.onload = async () => {
+    await loadData();
+    filterTable();
+
+    document.getElementById("searchPieces").innerHTML +=
+        Array.from({ length: 21 }, (_, i) => `<option value="${i}">${i}</option>`).join('');
+
     const conditionEl = document.getElementById("condition");
-    if (conditionEl) {
-        conditionEl.addEventListener("change", syncModelVisibility);
-    }
+    if (conditionEl) conditionEl.addEventListener("change", syncModelVisibility);
     syncModelVisibility();
-        };
+};
     </script>
     <script>
         function updateQuantity() {
