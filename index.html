@@ -310,27 +310,29 @@ header {
 <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-start; margin-bottom: 20px;">
     <!-- 🗑 Кнопка смітника перед size -->
     <button onclick="clearFilters()" style="
-        background-color: red;
-        color: white;
-        padding: 8px 12px;
-        font-size: 16px;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;">
-        🗑
-        <button onclick="clearMarks()" title="Clear marks" style="
-        background-color: orange;
-        color: black;
-        width: 42px;
-        height: 42px;
-        font-size: 20px;
-        border: none;
-        border-radius: 50%;
-        cursor: pointer;
-        display:flex;
-        align-items:center;
-        justify-content:center;">
-        🧽
+  background-color: red;
+  color: white;
+  padding: 8px 12px;
+  font-size: 16px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;">
+  🗑
+</button>
+
+<button onclick="clearMarks()" title="Clear marks" style="
+  background-color: orange;
+  color: black;
+  width: 42px;
+  height: 42px;
+  font-size: 20px;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;">
+  🧽
 </button>
 
     <!-- Поля фільтрації -->
@@ -341,7 +343,7 @@ header {
 
     <select id="searchPieces" onchange="filterTable()">
         <option value="">Select Pieces</option>
-        ${Array.from({ length: 21 }, (_, i) => `<option value="${i}">${i}</option>`).join('')}
+
     </select>
 
     <select id="searchSeason" onchange="filterTable()">
@@ -424,7 +426,85 @@ header {
     </div>
 
     <script>
-        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbza_jr227dtozSg2Yp4fpWIjeYxeFTTtfbuBtuMt6mkTbto9wtZPJk-O9tZJ-1MGmdtiQ/exec";
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyID5exJdWoHmT0SX4IM0Ft0Bsscvqj8DZFtfg9zjKrySC5MJk7WIHUgWqGXNDsWcsdNg/exec";
+
+// ===== EDIT VALIDATION (no spaces, no symbols) =====
+function isBlank(v) {
+  return (v ?? "").toString().trim() === "";
+}
+
+// дозволено тільки букви/цифри (жодних пробілів і символів)
+function isAlnumNoSpaces(v) {
+  const s = (v ?? "").toString();
+  return /^[A-Za-z0-9]+$/.test(s);
+}
+
+// Season: дозволяємо тільки ці значення (можна з /)
+function isValidSeason(v) {
+  const s = (v ?? "").toString().trim();
+  return /^(A\/T|A\/S|A\/W|Wint|M\/T)$/i.test(s);
+}
+
+// повертає текст помилки або пусто
+function validateEditValue(colName, rawValue) {
+  const v = (rawValue ?? "").toString();
+
+  // # може бути пустий
+  if (colName === "#") {
+    if (isBlank(v)) return "";
+    if (!isAlnumNoSpaces(v.trim())) return "Remove spaces or symbols (only letters and numbers)";
+    return "";
+  }
+
+  // обов'язковість для інших
+  if (isBlank(v)) return "This field is required";
+
+  // Season окремо
+  if (colName === "Season") {
+    if (!isValidSeason(v)) return "Season must be: A/T, A/S, A/W, Wint, M/T";
+    return "";
+  }
+
+  // всі інші: тільки букви/цифри, без пробілів і символів
+  if (!isAlnumNoSpaces(v.trim())) return "Remove spaces or symbols (only letters and numbers)";
+
+  return "";
+}
+
+function setInlineError(inputEl, message) {
+  inputEl.style.border = "";
+  inputEl.title = "";
+
+  const parent = inputEl.parentNode;
+  if (!parent) return;
+
+  let err = parent.querySelector(":scope > .error-message");
+  if (!message) {
+    if (err) err.remove();
+    return;
+  }
+
+  inputEl.style.border = "2px solid red";
+  inputEl.title = message;
+
+  if (!err) {
+    err = document.createElement("div");
+    err.className = "error-message";
+    parent.appendChild(err);
+  }
+  err.textContent = message;
+}
+
+function attachLiveValidation(inputEl, colName) {
+  const run = () => {
+    const msg = validateEditValue(colName, inputEl.value);
+    setInlineError(inputEl, msg);
+    return !msg;
+  };
+  inputEl.addEventListener("input", run);
+  run(); // одразу перевірити при відкритті
+  return run;
+}
 
         // ===== MARKS (localStorage) =====
 const MARKS_KEY = "tsp_marked_rows_v1";
@@ -443,16 +523,8 @@ function saveMarksSet(set) {
 
 // Робимо стабільний ключ рядка (щоб позначка не зникала після оновлень)
 function makeRowKey(row) {
-    return [
-        row["SIZE"] || "",
-        row["Price"] || "",
-        row["Season"] || "",
-        row["Brand"] || "",
-        row["Pieces"] || "",
-        row["New/Used"] || "",
-        row["location"] || "",
-        row["#"] || ""
-    ].join("|");
+  return row["uid"] || row["UID"] ||
+    `${row["SIZE"]||""}|${row["Brand"]||""}|${row["location"]||""}|${row["Pieces"]||""}|${row["#"]||""}`;
 }
 
 function toggleMarkRow(tr, rowKey, btn) {
@@ -494,6 +566,7 @@ function clearMarks() {
         async function addTire() {
     const fields = ["size", "price", "season", "brand", "pieces", "condition", "location"];
     let formData = { action: "add" };
+    let isValid = true;
     // Model: обов'язковий тільки якщо condition = New
 const condVal = (document.getElementById("condition").value || "").toLowerCase();
 const modelEl = document.getElementById("model");
@@ -530,31 +603,35 @@ if (condVal === "new") {
         }
 
         // live перевірка тільки коли поле показане (тобто New)
-        modelEl.addEventListener("input", () => {
-            if ((document.getElementById("condition").value || "").toLowerCase() !== "new") return;
+        if (!modelEl.dataset.liveBound) {
+  modelEl.dataset.liveBound = "1";
+  modelEl.addEventListener("input", () => { 
+    if ((document.getElementById("condition").value || "").toLowerCase() !== "new") return;
 
-            const val = modelEl.value.trim();
-            const pattern = /^[a-zA-Z0-9]+$/;
-            const next = modelEl.nextElementSibling;
+    const val = modelEl.value.trim();
+    const pattern = /^[a-zA-Z0-9]+$/;
+    const next = modelEl.nextElementSibling;
 
-            if (val && pattern.test(val)) {
-                modelEl.style.border = "";
-                if (next && next.classList.contains("error-message")) next.remove();
-            } else {
-                modelEl.style.border = "2px solid red";
-                if (!next || !next.classList.contains("error-message")) {
-                    const msg = document.createElement("div");
-                    msg.className = "error-message";
-                    msg.textContent = !val
-                        ? "Model is required for New tires"
-                        : "Only letters and numbers allowed (no spaces or symbols)";
-                    modelEl.parentNode.insertBefore(msg, modelEl.nextSibling);
-                }
-            }
-        });
+    if (val && pattern.test(val)) {
+      modelEl.style.border = "";
+      if (next && next.classList.contains("error-message")) next.remove();
+    } else {
+      modelEl.style.border = "2px solid red";
+      if (!next || !next.classList.contains("error-message")) {
+        const msg = document.createElement("div");
+        msg.className = "error-message";
+        msg.textContent = !val
+          ? "Model is required for New tires"
+          : "Only letters and numbers allowed (no spaces or symbols)";
+        modelEl.parentNode.insertBefore(msg, modelEl.nextSibling);
+      }
+    }
+  });
+}
+
     }
 }
-    let isValid = true;
+    
 
     fields.forEach(id => {
         const el = document.getElementById(id);
@@ -597,7 +674,9 @@ if (condVal === "new") {
         }
 
         // Live перевірка
-        el.addEventListener("input", () => {
+        if (!el.dataset.liveBound) {
+  el.dataset.liveBound = "1";
+  el.addEventListener("input", () => {
             const val = el.value.trim();
             const next = el.nextElementSibling;
             const passesRequired = val !== "";
@@ -620,6 +699,7 @@ if (condVal === "new") {
                 }
             }
         });
+        }
     });
 
     // # — не обов’язкове
@@ -630,15 +710,30 @@ if (condVal === "new") {
         return;
     }
     document.getElementById("loader").style.display = "block";
-    await fetch(WEB_APP_URL, {
-        method: "POST",
-        body: new URLSearchParams(formData)
-    });
-    document.getElementById("loader").style.display = "none";
-    alert("Added successfully!");
-await loadData();
-filterTable();
-toggleForm();
+
+// ✅ закрити форму одразу
+closeForm();
+
+fetch(WEB_APP_URL, {
+  method: "POST",
+  body: new URLSearchParams(formData)
+})
+.then(async (res) => {
+  const txt = await res.text();
+  if (!txt.includes("Success")) throw new Error(txt);
+
+  // ✅ після успіху оновлюємо таблицю
+  await loadData();
+  filterTable();
+  alert("Added successfully!");
+})
+.catch((e) => {
+  alert("Error adding: " + (e?.message || e));
+})
+.finally(() => {
+  document.getElementById("loader").style.display = "none";
+});
+        
 }
 function syncModelVisibility() {
     const conditionEl = document.getElementById("condition");
@@ -658,32 +753,32 @@ function syncModelVisibility() {
     }
 }
 
-        async function deleteRow(size, brand, location, pieces) {
-    console.log("Attempting to delete:", size, brand, location, pieces); // Додаємо лог
-    document.getElementById("loader").style.display = "block";
-    let response = await fetch(WEB_APP_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ 
-            action: "delete", 
-            size: size, 
-            brand: brand, 
-            location: location, 
-            pieces: pieces
-        })
-    });
+async function deleteRowByUid(uid) {
+  uid = (uid || "").toString().trim();
+  if (!uid) return alert("No uid найдено для видалення.");
 
-    let result = await response.text();
-    console.log("Server response:", result); // Логуємо відповідь сервера
+  document.getElementById("loader").style.display = "block";
 
-    if (result.includes("Deleted")) {
-        alert("Deleted successfully!");
-        await loadData();
-filterTable();
-document.getElementById("loader").style.display = "none";
-    } else {
-        alert("Error deleting tire: " + result);
-    }
+  const response = await fetch(WEB_APP_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      action: "delete",
+      uid: uid
+    })
+  });
+
+  const result = await response.text();
+
+  document.getElementById("loader").style.display = "none";
+
+  if (result.includes("Deleted")) {
+    alert("Deleted successfully!");
+    await loadData();
+    filterTable();
+  } else {
+    alert("Error deleting tire: " + result);
+  }
 }
 async function loadData() {
     let response = await fetch(WEB_APP_URL);
@@ -741,7 +836,8 @@ markBtn.onclick = () => toggleMarkRow(tr, rowKey, markBtn);
         // Кнопка видалення (🗑)
         let deleteBtn = document.createElement("button");
         deleteBtn.textContent = "🗑";
-        deleteBtn.onclick = () => deleteRow(row["SIZE"], row["Brand"], row["location"], row["Pieces"]);
+        const uid = row["uid"] || row["UID"] || "";
+        deleteBtn.onclick = () => deleteRowByUid(uid);
 
         actionTd.appendChild(markBtn);
 actionTd.appendChild(editBtn);
@@ -785,57 +881,121 @@ input.value = cellText;
         input.style.width = "100%";
 
         cells[i].textContent = "";
-        cells[i].appendChild(input);
+cells[i].appendChild(input);
 
-        updatedData[colName] = input.value.trim();
-        input.oninput = () => updatedData[colName] = input.value.trim();
+// ✅ LIVE validation for edit inputs
+attachLiveValidation(input, colName);
+
+updatedData[colName] = input.value.trim();
+input.oninput = () => updatedData[colName] = input.value.trim();
     }
 
-    // ===== ДОДАТКОВИЙ РЯДОК "MODEL" під редагованим рядком =====
-    const modelRow = document.createElement("tr");
-    modelRow.className = "model-edit-row";
+    // ===== MODEL row (show only for New) =====
+const modelRow = document.createElement("tr");
+modelRow.className = "model-edit-row";
 
-    const modelTd = document.createElement("td");
-    modelTd.colSpan = 9; // 8 колонок + Action = 9
+const modelTd = document.createElement("td");
+modelTd.colSpan = 9;
 
-    const wrap = document.createElement("div");
-    wrap.className = "model-edit-wrap";
+const wrap = document.createElement("div");
+wrap.className = "model-edit-wrap";
 
-    const lbl = document.createElement("label");
-    lbl.textContent = "Model:";
+const lbl = document.createElement("label");
+lbl.textContent = "Model:";
 
-    const modelInput = document.createElement("input");
-    modelInput.type = "text";
-    modelInput.placeholder = "Model";
-    modelInput.value = (oldRowData["Model"] || oldRowData["model"] || "").trim();
+const modelInput = document.createElement("input");
+modelInput.type = "text";
+modelInput.placeholder = "Model";
+modelInput.value = (oldRowData["Model"] || oldRowData["model"] || "").trim();
 
-    // зберігаємо в updatedData
-    updatedData["Model"] = modelInput.value.trim();
-    modelInput.addEventListener("input", () => {
-        updatedData["Model"] = modelInput.value.trim();
-    });
+// live validation (тільки якщо показано)
+attachLiveValidation(modelInput, "Model");
 
-    wrap.appendChild(lbl);
-    wrap.appendChild(modelInput);
-    modelTd.appendChild(wrap);
-    modelRow.appendChild(modelTd);
+// зберігаємо в updatedData
+updatedData["Model"] = modelInput.value.trim();
+modelInput.addEventListener("input", () => {
+  updatedData["Model"] = modelInput.value.trim();
+});
 
-    // вставляємо modelRow одразу під редагованим рядком
-    rowElement.parentNode.insertBefore(modelRow, rowElement.nextSibling);
+wrap.appendChild(lbl);
+wrap.appendChild(modelInput);
+modelTd.appendChild(wrap);
+modelRow.appendChild(modelTd);
+
+// вставляємо під рядок
+rowElement.parentNode.insertBefore(modelRow, rowElement.nextSibling);
+
+// ---- show/hide logic depending on New/Used in edit ----
+function setModelVisibilityByCondition() {
+  // беремо інпут "New/Used" з редагованого рядка
+  const conditionInput = rowElement.querySelector('td[data-col="New/Used"] input');
+  const cond = (conditionInput?.value || oldRowData["New/Used"] || "").toString().trim().toLowerCase();
+
+  const isNew = cond === "new";
+
+  // показуємо/ховаємо рядок
+  modelRow.style.display = isNew ? "" : "none";
+
+  if (!isNew) {
+    // якщо Used — чистимо model і прибираємо помилки
+    modelInput.value = "";
+    updatedData["Model"] = "";
+    setInlineError(modelInput, "");
+  }
+}
+
+// виклик одразу
+setModelVisibilityByCondition();
+
+// оновлювати при зміні поля New/Used
+const conditionInput = rowElement.querySelector('td[data-col="New/Used"] input');
+if (conditionInput) {
+  conditionInput.addEventListener("input", setModelVisibilityByCondition);
+}
 
     // ===== кнопки Save / Cancel =====
     let saveBtn = document.createElement("button");
     saveBtn.textContent = "✅";
     saveBtn.onclick = async () => {
-        await saveEditedRow(rowElement, oldRowData, updatedData);
+  // перевіряємо всі інпути в рядку
+  const inputs = rowElement.querySelectorAll("input");
+  const badCols = [];
 
-        // прибрати рядок Model (loadData все одно перемалює, але хай буде чисто)
-        if (modelRow && modelRow.parentNode) modelRow.remove();
+  for (const inp of inputs) {
+    const td = inp.closest("td");
+    const colName = td?.getAttribute("data-col");
+    if (!colName) continue;
 
-        // скинути фіксацію таблиці
-        table.style.width = "";
-        table.style.height = "";
-    };
+    const msg = validateEditValue(colName, inp.value);
+    setInlineError(inp, msg);
+    if (msg) badCols.push(colName);
+  }
+
+  // перевіряємо Model окремо
+  // перевіряємо Model тільки якщо зараз New
+const conditionInput2 = rowElement.querySelector('td[data-col="New/Used"] input');
+const cond2 = (conditionInput2?.value || oldRowData["New/Used"] || "").toString().trim().toLowerCase();
+
+if (cond2 === "new") {
+  const modelMsg = validateEditValue("Model", modelInput.value);
+  setInlineError(modelInput, modelMsg);
+  if (modelMsg) badCols.push("Model");
+} else {
+  // якщо Used — не вимагаємо model
+  setInlineError(modelInput, "");
+}
+  if (badCols.length) {
+    alert("Please fix before saving. Remove spaces or symbols in: " + [...new Set(badCols)].join(", "));
+    return; // ❌ НЕ зберігаємо
+  }
+
+  // ✅ Якщо все ок — зберігаємо
+  await saveEditedRow(rowElement, oldRowData, updatedData);
+
+  if (modelRow && modelRow.parentNode) modelRow.remove();
+  table.style.width = "";
+  table.style.height = "";
+};
 
     let cancelBtn = document.createElement("button");
     cancelBtn.textContent = "✖️";
@@ -850,70 +1010,51 @@ input.value = cellText;
     actionTd.appendChild(cancelBtn);
 }
 async function saveEditedRow(rowElement, oldRowData, updatedData) {
-    console.log("Old Data:", oldRowData);
-    console.log("Updated Data:", updatedData);
+  document.getElementById("loader").style.display = "block";
 
-    let table = document.getElementById("tireTable");
+  const uid = (oldRowData["uid"] || oldRowData["UID"] || "").toString().trim();
+  if (!uid) {
+    alert("No UID for update.");
+    document.getElementById("loader").style.display = "none";
+    return;
+  }
 
-    // Видаляємо старий запис
-    document.getElementById("loader").style.display = "block";
-    let deleteResponse = await fetch(WEB_APP_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-            action: "delete",
-            size: oldRowData["SIZE"],
-            brand: oldRowData["Brand"],
-            location: oldRowData["location"],
-            pieces: oldRowData["Pieces"]
-        })
+  try {
+    const res = await fetch(WEB_APP_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        action: "update",
+        uid,
+
+        size: updatedData["SIZE"] || oldRowData["SIZE"],
+        price: updatedData["Price"] || oldRowData["Price"],
+        season: updatedData["Season"] || oldRowData["Season"],
+        brand: updatedData["Brand"] || oldRowData["Brand"],
+        model: (updatedData["Model"] ?? oldRowData["Model"] ?? oldRowData["model"] ?? "").trim(),
+        pieces: updatedData["Pieces"] || oldRowData["Pieces"],
+        condition: updatedData["New/Used"] || oldRowData["New/Used"],
+        location: updatedData["location"] || oldRowData["location"],
+        number: (() => {
+          const v = (updatedData["#"] ?? oldRowData["#"] ?? "").toString().trim();
+          return (v === "-" ? "" : v);
+        })()
+      })
     });
 
-    let deleteResult = await deleteResponse.text();
-    console.log("Delete Response:", deleteResult);
+    const txt = await res.text();
+    if (!txt.includes("Updated")) throw new Error(txt);
 
-    if (deleteResult.includes("Deleted")) {
-        // Додаємо оновлений запис
-        let addResponse = await fetch(WEB_APP_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: new URLSearchParams({
-  action: "add",
-  size: updatedData["SIZE"] || oldRowData["SIZE"],
-  price: updatedData["Price"] || oldRowData["Price"],
-  season: updatedData["Season"] || oldRowData["Season"],
-  brand: updatedData["Brand"] || oldRowData["Brand"],
-  model: (updatedData["Model"] ?? oldRowData["Model"] ?? oldRowData["model"] ?? "").trim(),
-  pieces: updatedData["Pieces"] || oldRowData["Pieces"],
-  condition: updatedData["New/Used"] || oldRowData["New/Used"],
-  location: updatedData["location"] || oldRowData["location"],
-  number: ((updatedData["#"] ?? oldRowData["#"] ?? "").toString().trim() === "-")
-  ? ""
-  : (updatedData["#"] ?? oldRowData["#"] ?? "").toString().trim()
-})
-        });
-
-        let addResult = await addResponse.text();
-        console.log("Add Response:", addResult);
-
-        if (addResult.includes("Success")) {
-            alert("Updated successfully!");
-
-            // Оновлюємо тільки таблицю, без зміщення
-            await loadData();
-filterTable();
-document.getElementById("loader").style.display = "none";
-
-            // Скидаємо розмір таблиці
-            table.style.width = "";
-            table.style.height = "";
-        } else {
-            alert("Error adding updated data: " + addResult);
-        }
-    } else {
-        alert("Error deleting old data: " + deleteResult);
-    }
+    await loadData();
+    filterTable();
+    alert("Updated successfully!");
+  } catch (e) {
+    alert("Error updating: " + (e?.message || e));
+  } finally {
+    document.getElementById("loader").style.display = "none";
+  }
 }
+
 
 function filterTable() {
     let size = document.getElementById("searchSize").value.toLowerCase();
