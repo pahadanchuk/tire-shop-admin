@@ -427,7 +427,18 @@ header {
 
     <script>
         const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyID5exJdWoHmT0SX4IM0Ft0Bsscvqj8DZFtfg9zjKrySC5MJk7WIHUgWqGXNDsWcsdNg/exec";
-
+        async function fetchWithRetry(url, options = {}, retries = 3) {
+    for (let i = 0; i < retries; i++) {
+        try {
+            const response = await fetch(url, options);
+            if (!response.ok) throw new Error("HTTP " + response.status);
+            return response;
+        } catch (e) {
+            if (i === retries - 1) throw e;
+            await new Promise(r => setTimeout(r, 2000));
+        }
+    }
+}
 // ===== EDIT VALIDATION (no spaces, no symbols) =====
 function isBlank(v) {
   return (v ?? "").toString().trim() === "";
@@ -714,7 +725,7 @@ if (condVal === "new") {
 // ✅ закрити форму одразу
 closeForm();
 
-fetch(WEB_APP_URL, {
+fetchWithRetry(WEB_APP_URL, {
   method: "POST",
   body: new URLSearchParams(formData)
 })
@@ -753,35 +764,38 @@ function syncModelVisibility() {
     }
 }
 
-async function deleteRowByUid(uid) {
+async function deleteRowByUid(uid, tr) {
   uid = (uid || "").toString().trim();
-  if (!uid) return alert("No uid найдено для видалення.");
+  if (!uid) return alert("No uid знайдено для видалення.");
+
+  
 
   document.getElementById("loader").style.display = "block";
 
-  const response = await fetch(WEB_APP_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      action: "delete",
-      uid: uid
-    })
-  });
+  try {
+    const response = await fetchWithRetry(WEB_APP_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ action: "delete", uid })
+    });
 
-  const result = await response.text();
+    const result = await response.text();
 
-  document.getElementById("loader").style.display = "none";
+    if (!result.includes("Deleted")) {
+      throw new Error(result);
+    }
 
-  if (result.includes("Deleted")) {
-    alert("Deleted successfully!");
-    await loadData();
+    if (tr) tr.remove();
     filterTable();
-  } else {
-    alert("Error deleting tire: " + result);
+
+  } catch (e) {
+    alert("Error deleting tire: " + (e?.message || e));
+  } finally {
+    document.getElementById("loader").style.display = "none";
   }
 }
 async function loadData() {
-    let response = await fetch(WEB_APP_URL);
+    let response = await fetchWithRetry(WEB_APP_URL, {});
     let data = await response.json();
 
     // Сортуємо так, щоб записи з номером були зверху, а без номера залишалися внизу
@@ -837,7 +851,7 @@ markBtn.onclick = () => toggleMarkRow(tr, rowKey, markBtn);
         let deleteBtn = document.createElement("button");
         deleteBtn.textContent = "🗑";
         const uid = row["uid"] || row["UID"] || "";
-        deleteBtn.onclick = () => deleteRowByUid(uid);
+        deleteBtn.onclick = () => deleteRowByUid(uid, tr);
 
         actionTd.appendChild(markBtn);
 actionTd.appendChild(editBtn);
@@ -1020,7 +1034,7 @@ async function saveEditedRow(rowElement, oldRowData, updatedData) {
   }
 
   try {
-    const res = await fetch(WEB_APP_URL, {
+    const res = await fetchWithRetry(WEB_APP_URL, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
@@ -1043,11 +1057,74 @@ async function saveEditedRow(rowElement, oldRowData, updatedData) {
     });
 
     const txt = await res.text();
-    if (!txt.includes("Updated")) throw new Error(txt);
+if (!txt.includes("Updated")) throw new Error(txt);
 
+const newRow = {
+  ...oldRowData,
+  "SIZE": updatedData["SIZE"] || oldRowData["SIZE"],
+  "Price": updatedData["Price"] || oldRowData["Price"],
+  "Season": updatedData["Season"] || oldRowData["Season"],
+  "Brand": updatedData["Brand"] || oldRowData["Brand"],
+  "Model": updatedData["Model"] ?? oldRowData["Model"] ?? oldRowData["model"] ?? "",
+  "Pieces": updatedData["Pieces"] || oldRowData["Pieces"],
+  "New/Used": updatedData["New/Used"] || oldRowData["New/Used"],
+  "location": updatedData["location"] || oldRowData["location"],
+  "#": (updatedData["#"] ?? oldRowData["#"] ?? "").toString().trim()
+};
+
+const cells = rowElement.getElementsByTagName("td");
+
+cells[0].textContent = newRow["SIZE"] || "-";
+cells[1].textContent = newRow["Price"] || "-";
+cells[2].textContent = newRow["Season"] || "-";
+cells[3].textContent = newRow["Brand"] || "-";
+cells[4].textContent = newRow["Pieces"] || "-";
+cells[5].textContent = newRow["New/Used"] || "-";
+cells[6].textContent = newRow["location"] || "-";
+cells[7].textContent = newRow["#"] || "-";
+
+if (newRow["Model"]) cells[3].title = "Model: " + newRow["Model"];
+
+const actionTd = cells[8];
+actionTd.innerHTML = "";
+
+const rowKey = makeRowKey(newRow);
+const marks = getMarksSet();
+
+let markBtn = document.createElement("button");
+markBtn.className = "mark-btn";
+markBtn.type = "button";
+markBtn.textContent = "•";
+
+if (marks.has(rowKey)) {
+  rowElement.classList.add("checked-row");
+  markBtn.classList.add("checked");
+}
+
+markBtn.onclick = () => toggleMarkRow(rowElement, rowKey, markBtn);
+
+let editBtn = document.createElement("button");
+editBtn.textContent = "✏️";
+editBtn.onclick = () => editRow(rowElement, newRow);
+
+let deleteBtn = document.createElement("button");
+deleteBtn.textContent = "🗑";
+deleteBtn.onclick = () => deleteRowByUid(newRow["uid"] || newRow["UID"] || "", rowElement);
+
+actionTd.appendChild(markBtn);
+actionTd.appendChild(editBtn);
+actionTd.appendChild(deleteBtn);
+
+alert("Updated successfully!");
+
+setTimeout(async () => {
+  try {
     await loadData();
     filterTable();
-    alert("Updated successfully!");
+  } catch (e) {
+    console.log("Refresh after update failed:", e);
+  }
+}, 100);
   } catch (e) {
     alert("Error updating: " + (e?.message || e));
   } finally {
@@ -1106,6 +1183,19 @@ window.onload = async () => {
     const conditionEl = document.getElementById("condition");
     if (conditionEl) conditionEl.addEventListener("change", syncModelVisibility);
     syncModelVisibility();
+
+    // тихе автооновлення кожні 5 хвилин
+    setInterval(async () => {
+        const editingNow = document.querySelector(".model-edit-row");
+        if (editingNow) return; // якщо хтось редагує — не оновлюємо
+
+        try {
+            await loadData();
+            filterTable();
+        } catch (e) {
+            console.log("Auto refresh failed:", e);
+        }
+    }, 300000);
 };
     </script>
     <script>
