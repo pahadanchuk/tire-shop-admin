@@ -1507,21 +1507,27 @@ function playStation(station) {
     let url = "";
 
     switch (station) {
-      case "station1":
+
+case "station1":
+    // Rock (найкраща)
     url = "https://stream.radioparadise.com/rock-320";
     break;
-        case "station2":
-            url = "https://kexp-mp3-128.streamguys1.com/kexp128.mp3";
-            break;
 
-        case "station3":
-            url = "https://stream.radioparadise.com/radio2050-320";
-            break;
+case "station2":
+    // Alternative / Indie Rock
+    url = "https://kexp-mp3-128.streamguys1.com/kexp128.mp3";
+    break;
 
-        case "station4":
-            url = "https://stream.radioparadise.com/mellow-320";
-            break;
-    }
+case "station3":
+    // Hard Rock / Metal
+    url = "https://stream.radioparadise.com/mainmix-320";
+    break;
+
+case "station4":
+    // Electronic / Chill
+    url = "https://stream.radioparadise.com/mellow-320";
+    break;
+}
 
     if (!url) {
         alert("Radio link not added yet");
