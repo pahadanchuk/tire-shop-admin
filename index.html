@@ -302,83 +302,7 @@ header {
 #adminContent {
   display: none;
 }
-.radio-player{
-    display:none;
-    position:fixed;
-    top:50%;
-    left:50%;
-    transform:translate(-50%,-50%);
-    background:rgba(0,0,0,.9);
-    border:2px solid #FF0000;
-    border-radius:10px;
-    padding:20px;
-    width:350px;
-    z-index:9999;
-    text-align:center;
-}
 
-.radio-player h2{
-    color:#FF0000;
-}
-
-.radio-player button{
-    width:100%;
-    margin:8px 0;
-    padding:12px;
-    background:#FF0000;
-    color:white;
-    border:none;
-    border-radius:5px;
-    cursor:pointer;
-    font-size:16px;
-    font-weight:bold;
-}
-
-.radio-player button:hover{
-    background:orange;
-    color:black;
-}
-
-.radio-player audio{
-    width:100%;
-    margin-top:15px;
-}
-#miniPlayer {
-  display:none;
-  position:fixed;
-  right:15px;
-  bottom:15px;
-  background:rgba(0,0,0,.9);
-  border:2px solid #FF0000;
-  border-radius:12px;
-  padding:10px;
-  z-index:99999;
-  color:white;
-  text-align:center;
-  width:180px;
-}
-
-#miniPlayer button {
-  background:#FF0000;
-  color:white;
-  border:none;
-  border-radius:5px;
-  padding:8px;
-  margin:4px;
-  cursor:pointer;
-  font-weight:bold;
-}
-
-#miniPlayer button:hover {
-  background:orange;
-  color:black;
-}
-
-#miniTitle {
-  color:#ffd400;
-  font-size:13px;
-  margin-bottom:6px;
-}
 .logout-btn{
   position:absolute;
   top:20px;
@@ -433,44 +357,10 @@ header {
           <img src="calculator-icon.png" width="50">
         </button>
       
-        <button onclick="openRadio()" style="background:none;border:none;cursor:pointer;">
-          <img src="radio.png" style="width:50px;height:50px;object-fit:contain;" alt="Radio">
-      </button>
+
       
       </div>
-<div id="radioPlayer" class="radio-player">
 
-  <h2>📻 Radio</h2>
-  
-  <button onclick="playStation('station1')">
-    Need for Speed Style
-  </button>
-  <button onclick="playStation('station2')">
-  Rock
-  </button>
-  
-  <button onclick="playStation('station3')">
-  EDM
-  </button>
-  
-  <button onclick="playStation('station4')">
-  Chill
-  </button>
-  
-  <button onclick="closeRadio()">
-  Close
-  </button>
-  
-  <audio id="radioAudio" controls autoplay></audio>
-  
-</div>
-
-<div id="miniPlayer">
-  <div id="miniTitle">Music</div>
-  <button onclick="miniPause()">⏸</button>
-  <button id="miniNextBtn" onclick="miniNext()">⏭</button>
-  <button onclick="miniClose()">✖</button>
-</div>
 
 <!-- Сам калькулятор -->
 <div id="calculator" class="calculator" style="display: none; position: relative;">
@@ -646,7 +536,7 @@ header {
     </div>
 
     <script>
-        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyID5exJdWoHmT0SX4IM0Ft0Bsscvqj8DZFtfg9zjKrySC5MJk7WIHUgWqGXNDsWcsdNg/exec";
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwKpBcBp8XY7R1L-Pe1jbIfBSpvitWcaZz2OlldQrCJlD8yuYoYREZB25TRyu4faT5wRg/exec";
         async function fetchWithRetry(url, options = {}, retries = 3) {
     for (let i = 0; i < retries; i++) {
         try {
@@ -986,9 +876,13 @@ function syncModelVisibility() {
 
 async function deleteRowByUid(uid, tr) {
   uid = (uid || "").toString().trim();
-  if (!uid) return alert("No uid знайдено для видалення.");
 
-  
+  const number = tr?.children?.[7]?.textContent?.trim();
+  const cleanNumber = number === "-" ? "" : number;
+
+  if (!uid && !cleanNumber) {
+    return alert("No UID or # found for deleting.");
+  }
 
   document.getElementById("loader").style.display = "block";
 
@@ -996,7 +890,11 @@ async function deleteRowByUid(uid, tr) {
     const response = await fetchWithRetry(WEB_APP_URL, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ action: "delete", uid })
+      body: new URLSearchParams({
+        action: "delete",
+        uid: uid,
+        number: cleanNumber
+      })
     });
 
     const result = await response.text();
@@ -1014,72 +912,91 @@ async function deleteRowByUid(uid, tr) {
     document.getElementById("loader").style.display = "none";
   }
 }
-async function loadData() {
-    let response = await fetchWithRetry(WEB_APP_URL, {});
-    let data = await response.json();
 
-    // Сортуємо так, щоб записи з номером були зверху, а без номера залишалися внизу
+
+async function loadData(showLoader = true) {
+  const table = document.getElementById("tireTable").getElementsByTagName("tbody")[0];
+
+  try {
+    if (showLoader) {
+      document.getElementById("loader").style.display = "block";
+    }
+
+    let response = await fetchWithRetry(WEB_APP_URL + "?t=" + Date.now(), {});
+    let text = await response.text();
+
+    if (!text.trim().startsWith("[") && !text.trim().startsWith("{")) {
+      throw new Error("Script returned: " + text);
+    }
+
+    let data = JSON.parse(text);
+
     data.sort((a, b) => {
-        let numA = a["#"] ? Number(a["#"]) : -Infinity;
-        let numB = b["#"] ? Number(b["#"]) : -Infinity;
-        return numB - numA;
+      let numA = a["#"] ? Number(a["#"]) : -Infinity;
+      let numB = b["#"] ? Number(b["#"]) : -Infinity;
+      return numB - numA;
     });
 
-    let table = document.getElementById("tireTable").getElementsByTagName("tbody")[0];
     table.innerHTML = "";
 
     data.forEach(row => {
-        let tr = document.createElement("tr");
+      let tr = document.createElement("tr");
 
-        ["SIZE", "Price", "Season", "Brand", "Pieces", "New/Used", "location", "#"].forEach(col => {
-            let td = document.createElement("td");
-            td.textContent = row[col] || "-";
-            // Tooltip для Brand: показує Model при наведенні
-if (col === "Brand") {
-    const model = row["Model"] || row["model"] || "";
-    if (model) td.title = "Model: " + model;
-}
-            td.setAttribute("data-col", col);
-            tr.appendChild(td);
-        });
+      ["SIZE", "Price", "Season", "Brand", "Pieces", "New/Used", "location", "#"].forEach(col => {
+        let td = document.createElement("td");
+        td.textContent = row[col] || "-";
 
-        let actionTd = document.createElement("td");
+        if (col === "Brand") {
+          const model = row["Model"] || row["model"] || "";
+          if (model) td.title = "Model: " + model;
+        }
 
-        // ===== MARK BUTTON (•) =====
-const rowKey = makeRowKey(row);
-const marks = getMarksSet();
+        td.setAttribute("data-col", col);
+        tr.appendChild(td);
+      });
 
-let markBtn = document.createElement("button");
-markBtn.className = "mark-btn";
-markBtn.type = "button";
-markBtn.textContent = "•";
+      let actionTd = document.createElement("td");
 
-// Відновлюємо перекреслення після reload / loadData()
-if (marks.has(rowKey)) {
-    tr.classList.add("checked-row");
-    markBtn.classList.add("checked");
-}
+      const rowKey = makeRowKey(row);
+      const marks = getMarksSet();
 
-markBtn.onclick = () => toggleMarkRow(tr, rowKey, markBtn);
+      let markBtn = document.createElement("button");
+      markBtn.className = "mark-btn";
+      markBtn.type = "button";
+      markBtn.textContent = "•";
 
-        // Кнопка редагування (✏️)
-        let editBtn = document.createElement("button");
-        editBtn.textContent = "✏️";
-        editBtn.onclick = () => editRow(tr, row);
-        
-        // Кнопка видалення (🗑)
-        let deleteBtn = document.createElement("button");
-        deleteBtn.textContent = "🗑";
-        const uid = row["uid"] || row["UID"] || "";
-        deleteBtn.onclick = () => deleteRowByUid(uid, tr);
+      if (marks.has(rowKey)) {
+        tr.classList.add("checked-row");
+        markBtn.classList.add("checked");
+      }
 
-        actionTd.appendChild(markBtn);
-actionTd.appendChild(editBtn);
-actionTd.appendChild(deleteBtn);
-        tr.appendChild(actionTd);
+      markBtn.onclick = () => toggleMarkRow(tr, rowKey, markBtn);
 
-        table.appendChild(tr);
+      let editBtn = document.createElement("button");
+      editBtn.textContent = "✏️";
+      editBtn.onclick = () => editRow(tr, row);
+
+      let deleteBtn = document.createElement("button");
+      deleteBtn.textContent = "🗑";
+      const uid = row["uid"] || row["UID"] || "";
+      deleteBtn.onclick = () => deleteRowByUid(uid, tr);
+
+      actionTd.appendChild(markBtn);
+      actionTd.appendChild(editBtn);
+      actionTd.appendChild(deleteBtn);
+
+      tr.appendChild(actionTd);
+      table.appendChild(tr);
     });
+
+  } catch (e) {
+    table.innerHTML = `<tr><td colspan="9" style="color:yellow;">Error loading table: ${e.message}</td></tr>`;
+    console.error(e);
+} finally {
+    if (showLoader) {
+      document.getElementById("loader").style.display = "none";
+    }
+  }
 }
 function editRow(rowElement, oldRowData) {
     let table = document.getElementById("tireTable");
@@ -1394,8 +1311,14 @@ function filterTable() {
     }
 }
 window.onload = async () => {
-    await loadData();
-    filterTable();
+    try {
+        await loadData();
+        filterTable();
+    } catch (e) {
+        console.log(e);
+    }
+
+    document.getElementById("loader").style.display = "none";
 
     document.getElementById("searchPieces").innerHTML +=
         Array.from({ length: 21 }, (_, i) => `<option value="${i}">${i}</option>`).join('');
@@ -1410,12 +1333,12 @@ window.onload = async () => {
         if (editingNow) return; // якщо хтось редагує — не оновлюємо
 
         try {
-            await loadData();
+            await loadData(false);
             filterTable();
         } catch (e) {
             console.log("Auto refresh failed:", e);
         }
-    }, 10000);
+    }, 300000);
 };
     </script>
     <script>
@@ -1477,110 +1400,7 @@ window.onload = async () => {
         function closeCalculator() {
             document.getElementById("calculator").style.display = "none";
         }
-        let currentMode = "";
-let currentStation = "";
-
-function openRadio() {
-    document.getElementById("radioPlayer").style.display = "block";
-    document.getElementById("miniPlayer").style.display = "none";
-}
-
-function closeRadio() {
-    document.getElementById("radioPlayer").style.display = "none";
-
-    if (currentMode) {
-        document.getElementById("miniPlayer").style.display = "block";
-
-        if (currentMode === "youtube") {
-          document.getElementById("miniTitle").textContent = "NFS YouTube";
-            document.getElementById("miniNextBtn").style.display = "inline-block";
-        } else {
-            document.getElementById("miniTitle").textContent = "Radio";
-            document.getElementById("miniNextBtn").style.display = "none";
-        }
-    }
-}
-
-
-
-function playStation(station) {
-    let url = "";
-
-    switch (station) {
-
-case "station1":
-    // Rock (найкраща)
-    url = "https://stream.radioparadise.com/rock-320";
-    break;
-
-case "station2":
-    // Alternative / Indie Rock
-    url = "https://kexp-mp3-128.streamguys1.com/kexp128.mp3";
-    break;
-
-case "station3":
-    // Hard Rock / Metal
-    url = "https://stream.radioparadise.com/mainmix-320";
-    break;
-
-case "station4":
-    // Electronic / Chill
-    url = "https://stream.radioparadise.com/mellow-320";
-    break;
-}
-
-    if (!url) {
-        alert("Radio link not added yet");
-        return;
-    }
-
-    
-
-    currentMode = "radio";
-    currentStation = station;
-
-    const audio = document.getElementById("radioAudio");
-audio.style.display = "block";
-audio.src = url;
-audio.load();
-audio.play().catch(err => console.log(err));
-}
-
-function miniPause() {
-    const audio = document.getElementById("radioAudio");
-
-    if (currentMode === "radio") {
-        if (audio.paused) {
-            audio.play();
-        } else {
-            audio.pause();
-        }
-    }
-
-    if (currentMode === "youtube") {
-    alert("Для YouTube пауза працює тільки в самому YouTube-плеєрі.");
-}
-}
-
-function miniNext() {
-    if (currentMode === "youtube") {
-        alert("Для YouTube натисни Next всередині YouTube-плеєра.");
-    }
-}
-
-function miniClose() {
-    const audio = document.getElementById("radioAudio");
-    audio.pause();
-    audio.src = "";
-
-    
-document.getElementById("radioAudio").style.display = "block";
-
-    currentMode = "";
-    currentStation = "";
-
-    document.getElementById("miniPlayer").style.display = "none";
-}
+        
         
         </script>   
 </div> 
