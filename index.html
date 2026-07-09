@@ -537,6 +537,23 @@ header {
 
     <script>
         const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwKpBcBp8XY7R1L-Pe1jbIfBSpvitWcaZz2OlldQrCJlD8yuYoYREZB25TRyu4faT5wRg/exec";
+        let tiresData = [];
+
+function normalizeNumber(v) {
+  return (v ?? "").toString().trim().toUpperCase();
+}
+
+function numberExists(number, excludeUid = "") {
+  const n = normalizeNumber(number);
+  if (!n) return false;
+
+  return tiresData.some(row => {
+    const rowNum = normalizeNumber(row["#"]);
+    const rowUid = (row["uid"] || row["UID"] || "").toString().trim();
+
+    return rowNum === n && rowUid !== excludeUid;
+  });
+}
         async function fetchWithRetry(url, options = {}, retries = 3) {
     for (let i = 0; i < retries; i++) {
         try {
@@ -825,6 +842,11 @@ if (condVal === "new") {
 
     // # — не обов’язкове
     formData["number"] = document.getElementById("number").value.trim();
+    if (numberExists(formData["number"])) {
+    alert("This # already exists. Please use another number.");
+    document.getElementById("number").style.border = "2px solid red";
+    return;
+}
 
     if (!isValid) {
         alert("Please fix the errors before submitting.");
@@ -930,6 +952,7 @@ async function loadData(showLoader = true) {
     }
 
     let data = JSON.parse(text);
+    tiresData = data;
 
     data.sort((a, b) => {
       let numA = a["#"] ? Number(a["#"]) : -Infinity;
@@ -1169,6 +1192,13 @@ async function saveEditedRow(rowElement, oldRowData, updatedData) {
     document.getElementById("loader").style.display = "none";
     return;
   }
+  const newNumber = (updatedData["#"] ?? oldRowData["#"] ?? "").toString().trim();
+
+if (numberExists(newNumber, uid)) {
+  alert("This # already exists. Please use another number.");
+  document.getElementById("loader").style.display = "none";
+  return;
+}
 
   try {
     const res = await fetchWithRetry(WEB_APP_URL, {
